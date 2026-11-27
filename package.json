@@ -1,0 +1,29 @@
+{
+  "name": "theagency2627-vr-game",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mctantwerp/theagency2627-VR-game.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/mctantwerp/theagency2627-VR-game/issues"
+  },
+  "homepage": "https://github.com/mctantwerp/theagency2627-VR-game#readme",
+  "dependencies": {
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "vite": "^8.4.0"
+  },
+  "private": true
+}
