@@ -1,6 +1,6 @@
 # De Lichtvallei
 
-Een WebXR-minigolfspel voor Meta Quest 3. De eerste scène test het starten en afsluiten van VR.
+Een WebXR-minigolfspel voor Meta Quest 3 met één speelbare hole en een vlakke oefenbaan.
 
 ## Lokaal starten
 
@@ -13,16 +13,35 @@ npm run dev
 
 Open het getoonde adres op je computer. Voor een productiebuild gebruik je `npm run build`.
 
-## Testen op Quest 3
+## Testen op Quest 3 met HTTPS
 
-WebXR vereist een beveiligde context. Publiceer de build op een HTTPS-adres en open dat adres in de Quest-browser. Kies de VR-knop om de scène te betreden. Kijk rond en sluit de sessie via de VR-knop of het Quest-menu.
-
-Voor lokaal testen via USB kun je Android Platform Tools installeren en ontwikkelaarsmodus en USB-debugging op de Quest inschakelen. Verbind de headset, accepteer de debuggingvraag en voer op de computer uit:
+Installeer [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) en start de ontwikkelserver met `npm run dev`. Open een tweede terminal en voer uit:
 
 ```sh
-adb devices
-adb reverse tcp:5173 tcp:5173
-npm run dev
+cloudflared tunnel --protocol http2 --url http://localhost:5173
 ```
 
-Open `http://localhost:5173` in de Quest-browser. Localhost geldt als beveiligde context. Controleer het poortnummer in de Vite-uitvoer en pas beide poorten aan als 5173 bezet is. Test het starten, rondkijken en afsluiten op de headset zelf.
+Open het getoonde `https://...trycloudflare.com`-adres in de Quest-browser en kies de VR-knop. Test rondkijken en afsluiten via de VR-knop of het Quest-menu. Laat beide terminals open tijdens het testen. Is poort 5173 bezet, start Vite dan met `npm run dev -- --port 5174` en gebruik dezelfde poort in het tunnelcommando. De tijdelijke link is publiek toegankelijk en verandert wanneer je de tunnel opnieuw start.
+
+## Online publiceren
+
+Voer in de checkout op de server uit:
+
+```sh
+git pull --ff-only origin develop
+npm ci
+npm run build
+```
+
+Stel `dist/` in als webroot om de game rechtstreeks op het domein te openen. Als de webroot de projectmap is, kun je de build openen via `/dist/`. De build gebruikt relatieve paden en draait op een statische HTTPS-webserver.
+
+## Spelen op Quest 3
+
+- Ga bij de bal staan en houd de controller waar je je hand ontspannen houdt tijdens het putten. Houd grip vast om de putter te bekijken. Laat grip los om de baan op je hand uit te lijnen. De game bewaart die afstelling per speelhand. Om later opnieuw af te stellen, druk op de trigger terwijl je grip vasthoudt.
+- Maak een putt zonder knop. Houd de gripknop vast als je een oefenslag wilt maken.
+- Druk op de trigger van je andere hand om van speelhand te wisselen.
+- Druk op de trigger van je speelhand wanneer de ring rond de bal verschijnt om naast de bal te gaan staan.
+- Druk na het uitholen op de trigger van je speelhand om opnieuw te beginnen. Met de gripknop van je andere hand schakel je het geluid.
+- Sla om de wortel heen, of gebruik de paarse paddenstoel om met de bal over de wortel te springen.
+
+De melodie en geluidseffecten worden door het project zelf via Web Audio opgebouwd. Er zitten geen opnames, samples of muziekbestanden van derden in de demo.
