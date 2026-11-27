@@ -45,12 +45,13 @@ Stel `dist/` in als webroot om de game rechtstreeks op het domein te openen. Als
 - Druk op de trigger van je andere hand om van speelhand te wisselen.
 - Druk op de trigger van je speelhand wanneer de ring rond de bal verschijnt om naast de bal te gaan staan.
 - Druk na het uitholen op de trigger van je speelhand om opnieuw te beginnen. Met de gripknop van je andere hand schakel je het geluid.
+- Houd X op je linkercontroller vast om terug te gaan naar het startscherm.
 - Sla om de wortel heen, of gebruik de paarse paddenstoel om met de bal over de wortel te springen.
 
 De melodie en geluidseffecten worden door het project zelf via Web Audio opgebouwd. Er zitten geen opnames, samples of muziekbestanden van derden in de demo.
 
 ## Kamerbaan met passthrough
 
-Kies **Kamerbaan met passthrough** in de Quest-browser en start de kamerbaan. Kies tussen **Rechte putt**, **Smalle poort** en **Slalom** met de duimstick naar links of rechts, of met A en B op je rechtercontroller. Kijk naar een lege plek op de vloer. In het kader van 1,35 bij 2,35 meter zie je de obstakels en de cup van de gekozen baan. Druk op de trigger om ze te plaatsen.
+Kies **Kamerbaan met passthrough** in de Quest-browser en start de kamerbaan. Kies tussen **Rechte putt**, **Smalle poort** en **Slalom** met de duimstick naar links of rechts, of met A en B op je rechtercontroller. Kijk naar een lege plek op de vloer. In het kader van 1,35 bij 2,35 meter zie je de obstakels en de cup van de gekozen baan. Druk op de trigger van je speelhand om de baan te plaatsen. Je eigen vloer blijft zichtbaar tussen de randen.
 
-Loop fysiek binnen de ingestelde speelruimte naar de virtuele bal. Houd grip vast bij de bal en laat los om de putter af te stellen. Sla daarna met de controller. Druk na het uitholen op trigger om opnieuw te spelen op dezelfde plek. Sluit de kamerbaan af en start opnieuw om een andere plek te kiezen.
+Loop fysiek binnen de ingestelde speelruimte naar de virtuele bal. Houd grip vast bij de bal en laat los om de putter af te stellen. Houd tijdens je slag de **linkertrigger** ingedrukt. De putterkop wordt goud zodra je kunt slaan. Druk na het uitholen op de **rechtertrigger** om opnieuw te spelen op dezelfde plek. Houd **X** vast om terug te gaan naar het startscherm, waar je opnieuw een baan kunt kiezen.

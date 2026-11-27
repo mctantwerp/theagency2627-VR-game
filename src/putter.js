@@ -177,8 +177,12 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
     });
     target.addEventListener('selectstart', () => {
       if (!controller.connected) return;
-      if (controls.requestPlacement?.()) {
-        select(controller);
+      if (controls.requestPlacement) {
+        if (controls.requestPlacement()) select(controller);
+        else if (controller.hand === 'right' && controls.canPutt()) {
+          if (ball.isHoled()) controls.reset();
+          else if (active?.practice) active.calibrating = true;
+        }
         return;
       }
       if (controller !== active) {
@@ -369,9 +373,12 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
     shaft.scale.y = head.position.length();
     handle.quaternion.copy(shaft.quaternion);
     handle.position.copy(direction).multiplyScalar(gripAboveHand - gripLength / 2);
-    head.material.color.setHex(calibrating ? 0xecc785 : practice ? 0x9baea4 : 0xd3ddda);
-
-    const playableFace = bladePosition.y >= clearance - turfTolerance && !practice && !calibrating;
+    const enabled = controls.strikeEnabled?.() ?? true;
+    if (!enabled) averagedVelocity.set(0, 0, 0);
+    const playableFace = enabled && bladePosition.y >= clearance - turfTolerance && !practice && !calibrating;
+    if (calibrating) head.material.color.setHex(0xecc785);
+    else if (practice || !enabled) head.material.color.setHex(0x9baea4);
+    else head.material.color.setHex(controls.strikeEnabled ? 0xffd47d : 0xd3ddda);
     if (hasPrevious && canStrike && playableFace && validFrame) detectStrike(bladePosition, bladeRotation, delta);
     previousPosition.copy(bladePosition);
     previousRotation.copy(bladeRotation);

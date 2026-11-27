@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { defaultRoomCourseIndex, roomCourse, roomCourses } from './course-layout.js';
-import { createTurfMaterial } from './course-materials.js';
-import { addCup, createPerforatedSurface } from './cup.js';
+import { addCup } from './cup.js';
+import { controllerGamepad } from './xr-controls.js';
 
 const up = new THREE.Vector3(0, 1, 0);
 const halfWidth = roomCourse.width / 2;
@@ -44,14 +44,8 @@ export function createRoomCourse(parent) {
   light.position.set(-1, 3, 1);
   parent.add(light);
 
-  const turf = createTurfMaterial();
-  turf.map.repeat.set(3, 5);
   const variants = roomCourses.map((layout) => {
     const variant = new THREE.Group();
-    const outline = new THREE.Shape(outlineCorners().map(({ x, z }) => new THREE.Vector2(x, -z)));
-    const green = new THREE.Mesh(createPerforatedSurface(outline, layout.width, length, layout.cup), turf);
-    green.position.y = 0.002;
-    variant.add(green);
     addCup(variant, layout.cup);
     addRoomFeatures(variant, layout);
     parent.add(variant);
@@ -92,16 +86,10 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
     new THREE.BufferGeometry().setFromPoints(outlineCorners(0.015)),
     new THREE.LineBasicMaterial({ color: 0xf8dd92 }),
   );
-  const footprint = new THREE.Mesh(
-    new THREE.PlaneGeometry(roomCourse.width, length),
-    new THREE.MeshBasicMaterial({ color: 0x5be3a4, transparent: true, opacity: 0.24, depthWrite: false }),
-  );
-  footprint.rotation.x = -Math.PI / 2;
-  footprint.position.set(0, 0.009, middle);
   const tee = new THREE.Mesh(new THREE.RingGeometry(0.078, 0.092, 28), new THREE.MeshBasicMaterial({ color: 0xf8dd92 }));
   tee.rotation.x = -Math.PI / 2;
   tee.position.set(0, 0.016, roomCourse.startZ);
-  guide.add(outline, footprint, tee);
+  guide.add(outline, tee);
   const previews = roomCourses.map((layout) => {
     const variant = new THREE.Group();
     addRoomFeatures(variant, layout, true);
@@ -111,12 +99,12 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
 
   const canvas = document.createElement('canvas');
   canvas.width = 768;
-  canvas.height = 214;
+  canvas.height = 260;
   const context = canvas.getContext('2d');
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   const prompt = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false }));
-  prompt.scale.set(0.72, 0.202, 1);
+  prompt.scale.set(0.72, 0.244, 1);
   prompt.renderOrder = 1;
   scene.add(guide, prompt);
 
@@ -131,6 +119,8 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
   let placed = false;
   let requested = false;
   let viewerTracked = false;
+  let triggerReleased = false;
+  let striking = false;
   let promptText;
 
   function select(index) {
@@ -163,6 +153,7 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
 
   function reset(immersive = false) {
     placed = requested = viewerTracked = false;
+    triggerReleased = striking = false;
     stickHeld = aHeld = bHeld = false;
     guide.visible = prompt.visible = false;
     course.visible = !immersive;
@@ -183,11 +174,17 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
     viewerTracked = Boolean(pose);
     if (!pose) {
       guide.visible = prompt.visible = requested = false;
+      triggerReleased = striking = false;
       return false;
     }
     const { position, orientation: view } = pose.transform;
     viewerPosition.copy(position).applyAxisAngle(up, rig.rotation.y).add(rig.position);
-    if (placed) return false;
+    if (placed) {
+      const trigger = controllerGamepad(frame.session.inputSources, 'left')?.buttons[0];
+      striking = triggerReleased && trigger?.pressed === true;
+      triggerReleased = Boolean(trigger) && (triggerReleased || !trigger.pressed);
+      return false;
+    }
     const yaw = getRoomPlacement(pose, origin, orientation, direction);
     const valid = yaw !== null;
     if (requested && valid) {
@@ -213,7 +210,7 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
     direction.set(0, 0, -1).applyQuaternion(orientation);
     prompt.position.copy(position).addScaledVector(direction, 0.92);
     prompt.position.y += 0.13;
-    const instruction = valid ? 'Trigger • plaatsen' : 'Kijk naar een vrije plek op de vloer';
+    const instruction = valid ? 'Trigger van je speelhand • Plaatsen' : 'Kijk naar een vrije plek op de vloer';
     const title = roomCourses[selected].name;
     const text = title + instruction;
     if (promptText !== text) {
@@ -229,6 +226,7 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
       context.fillText(instruction, canvas.width / 2, 111, canvas.width - 42);
       context.font = '30px system-ui';
       context.fillText('Duimstick links/rechts of A/B • Kies baan', canvas.width / 2, 166, canvas.width - 42);
+      context.fillText('Houd X vast • Startscherm', canvas.width / 2, 216, canvas.width - 42);
       texture.needsUpdate = true;
     }
     return false;
@@ -239,6 +237,7 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
   return {
     reset, request, update,
     canPutt: () => placed && viewerTracked,
+    canStrike: () => striking,
     getViewerPosition: () => viewerTracked ? viewerPosition : null,
   };
 }

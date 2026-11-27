@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Euler, Group, Quaternion, Scene, Vector2, Vector3 } from 'three';
+import { Euler, Group, Quaternion, Raycaster, Scene, Vector2, Vector3 } from 'three';
 import { createBall } from '../src/ball.js';
 import { roomCourse, roomCourses } from '../src/course-layout.js';
-import { getRoomPlacement, setupRoomPlacement } from '../src/room-course.js';
+import { createRoomCourse, getRoomPlacement, setupRoomPlacement } from '../src/room-course.js';
+import { setupHomeShortcut } from '../src/xr-controls.js';
 
 function poseAt(x, y, z, pitch, yaw = 0) {
   return { transform: {
@@ -34,14 +35,22 @@ test('the room lane is locked in place after confirmation and clears on referenc
   const rig = new Group();
   scene.add(course, rig);
   const selected = [];
-  const placement = setupRoomPlacement(scene, course, rig, (_, index) => selected.push(index));
+  const showRoomCourse = createRoomCourse(course);
+  const placement = setupRoomPlacement(scene, course, rig, (_, index) => {
+    showRoomCourse(index);
+    selected.push(index);
+  });
   placement.reset(true);
   const xr = { isPresenting: true, getReferenceSpace: () => ({}) };
   let pose = poseAt(1, 1.65, 2, 0);
   const stick = { mapping: 'xr-standard', axes: [0, 0, 0, 0], buttons: [] };
+  const leftTrigger = { pressed: true };
   const frame = { session: {
     visibilityState: 'visible',
-    inputSources: [{ handedness: 'right', gamepad: stick }],
+    inputSources: [
+      { handedness: 'right', gamepad: stick },
+      { handedness: 'left', gamepad: { mapping: 'xr-standard', axes: [], buttons: [leftTrigger] } },
+    ],
   }, getViewerPose: () => pose };
 
   assert.ok(placement.request());
@@ -66,6 +75,11 @@ test('the room lane is locked in place after confirmation and clears on referenc
   assert.ok(placement.canPutt());
   assert.ok(course.visible);
   assert.ok(new Vector3(-0.65, 0, 2).applyMatrix4(rig.matrixWorld).length() < 1e-8);
+  course.updateMatrixWorld(true);
+  const floorRay = new Raycaster(new Vector3(0.3, 1, -0.4), new Vector3(0, -1, 0));
+  assert.equal(floorRay.intersectObject(course, true).length, 0);
+  floorRay.ray.origin.x = roomCourse.width / 2 + 0.018;
+  assert.ok(floorRay.intersectObject(course, true).length > 0);
 
   const anchored = rig.matrixWorld.clone();
   const firstPosition = placement.getViewerPosition().clone();
@@ -75,13 +89,56 @@ test('the room lane is locked in place after confirmation and clears on referenc
   assert.ok(rig.matrixWorld.equals(anchored));
   assert.deepEqual(selected, [1, 2, 1, 2]);
   assert.ok(Math.abs(placement.getViewerPosition().distanceTo(firstPosition) - 0.5) < 1e-8);
+  assert.equal(placement.canStrike(), false);
+  leftTrigger.pressed = false;
+  stick.buttons[0] = { pressed: true };
+  placement.update(xr, frame);
+  assert.equal(placement.canStrike(), false);
+  leftTrigger.pressed = true;
+  placement.update(xr, frame);
+  assert.equal(placement.canStrike(), true);
+  leftTrigger.pressed = false;
+  placement.update(xr, frame);
+  assert.equal(placement.canStrike(), false);
+  leftTrigger.pressed = true;
+  placement.update(xr, frame);
+  assert.equal(placement.canStrike(), true);
 
   frame.session.visibilityState = 'visible-blurred';
   placement.update(xr, frame);
   assert.equal(placement.canPutt(), false);
+  assert.equal(placement.canStrike(), false);
+  frame.session.visibilityState = 'visible';
+  placement.update(xr, frame);
+  assert.equal(placement.canStrike(), false);
   placement.reset(true);
   assert.equal(course.visible, false);
   assert.equal(placement.canPutt(), false);
+});
+
+test('holding the left X button ends the XR session before returning to the start screen', async () => {
+  const events = [];
+  const update = setupHomeShortcut(() => events.push('home'));
+  const x = { pressed: false };
+  const session = {
+    visibilityState: 'visible',
+    inputSources: [
+      { handedness: 'left', gamepad: { mapping: 'xr-standard', buttons: [null, null, null, null, x] } },
+      { handedness: 'right', gamepad: { mapping: 'xr-standard', buttons: [null, null, null, null, { pressed: true }] } },
+    ],
+    async end() { events.push('end'); },
+  };
+  for (let frame = 0; frame < 10; frame++) update(session, 0.1);
+  x.pressed = true;
+  for (let frame = 0; frame < 5; frame++) update(session, 0.1);
+  assert.deepEqual(events, []);
+  update(session, 1);
+  for (let frame = 0; frame < 5; frame++) update(session, 0.1);
+  assert.deepEqual(events, []);
+  await update(session, 0.1);
+  await update(session, 0.1);
+  await update(session, 0.1);
+  assert.deepEqual(events, ['end', 'home']);
 });
 
 test('the room ball uses the smaller lane and its offset cup', () => {

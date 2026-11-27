@@ -96,7 +96,7 @@ test('teleport lands on the side for the selected hand and keeps floor height', 
   assert.equal(teleport.update(xr, frame), false);
 });
 
-function setupController(hand = 'right', position = new THREE.Vector3(-0.26, 0.84, -0.29)) {
+function setupController(hand = 'right', position = new THREE.Vector3(-0.26, 0.84, -0.29), controls = {}) {
   const scene = new THREE.Scene();
   const rig = new THREE.Group();
   scene.add(rig);
@@ -104,7 +104,7 @@ function setupController(hand = 'right', position = new THREE.Vector3(-0.26, 0.8
   const targets = [new THREE.Group(), new THREE.Group()];
   const grips = [new THREE.Group(), new THREE.Group()];
   const update = setupPutter({ xr: { getController: i => targets[i], getControllerGrip: i => grips[i] } },
-    scene, rig, ball, { teleport() {}, reset() {}, mute() {}, alignAddress(x, z) {
+    scene, rig, ball, { ...controls, teleport() {}, reset() {}, mute() {}, alignAddress(x, z) {
       rig.position.x += x;
       rig.position.z += z;
       rig.updateMatrixWorld(true);
@@ -187,6 +187,34 @@ test('a putt can start with the face already near the ball', () => {
     update(1 / 90);
   }
   assert.equal(ball.getStrokes(), 1);
+});
+
+test('a gated putter only strikes when enabled before contact', () => {
+  let enabled = false;
+  const { ball, head, grip, update } = setupController(undefined, undefined, { strikeEnabled: () => enabled });
+  const address = grip.position.clone();
+  const step = 1 / 90;
+  function swing(releaseAt = -1) {
+    grip.position.copy(address);
+    update(step, true);
+    for (let index = 0; index < 28; index++) {
+      if (index === releaseAt) enabled = false;
+      grip.position.z -= 0.006;
+      update(step);
+    }
+  }
+  assert.equal(head.material.color.getHex(), 0x9baea4);
+  swing();
+  assert.equal(ball.getStrokes(), 0);
+  enabled = true;
+  update(step);
+  assert.equal(ball.getStrokes(), 0);
+  swing(6);
+  assert.equal(ball.getStrokes(), 0);
+  enabled = true;
+  swing();
+  assert.equal(ball.getStrokes(), 1);
+  assert.equal(head.material.color.getHex(), 0xffd47d);
 });
 
 test('the green has an opening and the ball falls through before scoring', () => {

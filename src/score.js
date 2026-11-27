@@ -28,7 +28,7 @@ export function setupScore(scene, ball, room = false) {
     const strokes = ball.getStrokes();
     const text = strokes === 1 ? '1 slag' : `${strokes} slagen`;
     const message = ball.isHoled() ? `Uitgespeeld in ${text}` : text;
-    const status = ball.isHoled() ? 'Trigger • opnieuw spelen' : hint;
+    const status = ball.isHoled() ? `${room ? 'Rechtertrigger' : 'Trigger'} • opnieuw spelen` : hint;
     if (message === previousText && status === previousHint) return;
 
     previousText = message;
@@ -48,7 +48,7 @@ export function setupScore(scene, ball, room = false) {
     context.font = '34px system-ui';
     context.fillText(status, 384, 164, 702);
     context.font = '27px system-ui';
-    context.fillText(room ? 'Stap binnen je speelruimte' : 'Duimstick • rondlopen', 384, 213);
+    context.fillText(room ? 'Houd X vast • Startscherm' : 'Duimstick • Rondlopen   |   Houd X vast • Startscherm', 384, 213);
     texture.needsUpdate = true;
   }
 

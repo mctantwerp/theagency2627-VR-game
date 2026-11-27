@@ -10,6 +10,7 @@ import { setupScore } from './score.js';
 import { setupTeleport } from './teleport.js';
 import { walkWithThumbstick } from './walking.js';
 import { createWorld } from './world.js';
+import { setupHomeShortcut } from './xr-controls.js';
 
 export function startScene() {
   const scene = new THREE.Scene();
@@ -35,13 +36,13 @@ export function startScene() {
   const modeLink = document.getElementById('mode');
   const courseGuide = document.getElementById('course-guide');
   if (room) {
-    courseGuide.textContent = 'Kies een baan met de duimstick of A/B. Kijk naar vrije vloer en plaats de baan met de trigger.';
+    courseGuide.textContent = 'Kies een baan met de duimstick of A/B. Kijk naar vrije vloer en plaats met de trigger van je speelhand.';
     document.getElementById('room-mode').remove();
   } else if (practice) {
     courseGuide.textContent = 'Vlakke oefenbaan voor grip en korte putts.';
   }
   if (room || practice) {
-    modeLink.textContent = 'Naar de bosbaan';
+    modeLink.textContent = 'Naar het startscherm';
     modeLink.href = './';
   }
   let previousTime = null;
@@ -76,13 +77,15 @@ export function startScene() {
     alignAddress: teleport?.alignAddress,
     requestPlacement: placement?.request,
     canPutt: placement?.canPutt,
+    strikeEnabled: placement?.canStrike,
     getCup: () => layout.cup,
     calibrationKey: room ? 'lichtvallei.putter.room.v1' : undefined,
-    puttHint: room ? 'Stap naar de bal en tik hem aan.' : undefined,
+    puttHint: room ? 'Houd de linkertrigger ingedrukt om te slaan.' : undefined,
     reset: (hand, stance) => { resetRequest = { hand, stance }; },
     mute: toggleAudio,
     message: score.message,
   });
+  const updateHomeShortcut = setupHomeShortcut(() => window.location.assign('./'));
 
   let roomReferenceSpace;
   function clearRoomPlacement() {
@@ -129,6 +132,7 @@ export function startScene() {
     time = frameTime;
     const delta = previousTime === null ? 0 : (time - previousTime) / 1000;
     previousTime = time;
+    updateHomeShortcut(frame?.session, delta);
 
     const resetting = resetRequest !== null;
     if (resetRequest) {
