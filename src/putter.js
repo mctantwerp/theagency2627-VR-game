@@ -7,6 +7,8 @@ const bladeDepth = 0.038;
 const gripLength = 0.21;
 const gripAboveHand = 0.05;
 const floorAssist = 0.045;
+const turfTolerance = 0.001;
+const maxFaceTilt = Math.sin(THREE.MathUtils.degToRad(35));
 const minClubLength = 0.45;
 const maxClubLength = 1.22;
 const calibrationKey = 'lichtvallei.putter.v6';
@@ -252,17 +254,16 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
     inverse.copy(rotation).invert();
     currentBall.subVectors(ball.mesh.position, position).applyQuaternion(inverse);
     const side = previousBall.z > 0 ? 1 : -1;
-    const contactRadius = ball.radius + 0.007;
-    const radiusSquared = contactRadius * contactRadius;
+    const radiusSquared = ball.radius * ball.radius;
     if (side * previousBall.z < bladeDepth / 2 ||
         side * (previousBall.z - currentBall.z) <= 0) return;
 
     normal.copy(front).multiplyScalar(-side).applyQuaternion(rotation);
+    if (Math.abs(normal.y) > maxFaceTilt) return;
     normal.y = 0;
-    if (normal.lengthSq() < 0.05) return;
     normal.normalize();
     const approachSpeed = velocity.dot(normal);
-    if (approachSpeed < 0.022 || position.y - bladeClearance(rotation) < -0.012) return;
+    if (approachSpeed < 0.022) return;
 
     const steps = Math.max(1, Math.ceil(previousBall.distanceTo(currentBall) / (ball.radius * 0.16)));
     for (let index = 1; index <= steps; index++) {
@@ -342,7 +343,8 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
     // A small vertical correction keeps the blade on the turf without moving it into the ball.
     bladePosition.copy(head.position).applyQuaternion(handRotation).add(handPosition);
     bladeRotation.multiplyQuaternions(handRotation, head.quaternion);
-    const lift = THREE.MathUtils.clamp(bladeClearance(bladeRotation) - bladePosition.y, 0, floorAssist);
+    const clearance = bladeClearance(bladeRotation);
+    const lift = THREE.MathUtils.clamp(clearance - bladePosition.y, 0, floorAssist);
     club.position.y += lift;
     bladePosition.y += lift;
 
@@ -354,10 +356,11 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
     handle.position.copy(direction).multiplyScalar(gripAboveHand - gripLength / 2);
     head.material.color.setHex(calibrating ? 0xecc785 : practice ? 0x9baea4 : 0xd3ddda);
 
-    if (hasPrevious && canStrike && !practice && !calibrating && validFrame) detectStrike(bladePosition, bladeRotation, delta);
+    const playableFace = bladePosition.y >= clearance - turfTolerance && !practice && !calibrating;
+    if (hasPrevious && canStrike && playableFace && validFrame) detectStrike(bladePosition, bladeRotation, delta);
     previousPosition.copy(bladePosition);
     previousRotation.copy(bladeRotation);
     hasPrevious = true;
-    canStrike = !practice && !calibrating;
+    canStrike = playableFace;
   };
 }

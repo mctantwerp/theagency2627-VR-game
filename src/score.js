@@ -45,6 +45,8 @@ export function setupScore(scene, ball) {
     context.fillStyle = '#e3e8da';
     context.font = '34px system-ui';
     context.fillText(status, 384, 164, 702);
+    context.font = '27px system-ui';
+    context.fillText('Duimstick • rondlopen', 384, 213);
     texture.needsUpdate = true;
   }
 

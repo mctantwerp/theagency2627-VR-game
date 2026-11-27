@@ -1,11 +1,7 @@
 import * as THREE from 'three';
-import { cupEdge, root, teeEdge } from './course-layout.js';
+import { cupEdge, isNearRoot, root, teeEdge } from './course-layout.js';
 
 export function setupTeleport(scene, rig, ball, practice = false) {
-  function insideRoot(x, z) {
-    return !practice && x > root.minX - 0.16 && x < root.maxX + 0.16 && Math.abs(z - root.z) < 0.30;
-  }
-
   const marker = new THREE.Mesh(
     new THREE.RingGeometry(0.115, 0.132, 36),
     new THREE.MeshBasicMaterial({ color: 0xd8e99b, transparent: true, opacity: 0.75 }),
@@ -53,7 +49,7 @@ export function setupTeleport(scene, rig, ball, practice = false) {
     const targetX = x + offsetX;
     let targetZ = THREE.MathUtils.clamp(z + offsetZ,
       cupEdge + 0.30, teeEdge + 0.45);
-    if (insideRoot(targetX, targetZ)) {
+    if (!practice && isNearRoot(targetX, targetZ)) {
       targetZ = root.z + (offsetZ < 0 ? -0.32 : 0.32);
     }
     rig.position.set(targetX - viewer.x, 0, targetZ - viewer.z);
@@ -67,7 +63,7 @@ export function setupTeleport(scene, rig, ball, practice = false) {
     const targetX = viewerPosition.x + x;
     const targetZ = viewerPosition.z + z;
     if (Math.abs(targetX) > 2.1 || targetZ < cupEdge - 0.35 || targetZ > teeEdge + 0.55 ||
-        insideRoot(targetX, targetZ)) return false;
+        (!practice && isNearRoot(targetX, targetZ))) return false;
 
     rig.position.x += x;
     rig.position.z += z;

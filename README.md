@@ -37,6 +37,9 @@ Stel `dist/` in als webroot om de game rechtstreeks op het domein te openen. Als
 
 ## Spelen op Quest 3
 
+- Stel in de Quest-instellingen een roomscale-grens in en controleer het vloerniveau. Je echte stappen worden één op één gevolgd binnen die ruimte.
+- Duw een duimstick om over de virtuele baan te wandelen, ook als je in een kleine ruimte speelt.
+
 - Ga bij de bal staan en houd de controller waar je je hand ontspannen houdt tijdens het putten. Houd grip vast om de putter te bekijken. Laat grip los om de baan op je hand uit te lijnen. De game bewaart die afstelling per speelhand. Om later opnieuw af te stellen, druk op de trigger terwijl je grip vasthoudt.
 - Maak een putt zonder knop. Houd de gripknop vast als je een oefenslag wilt maken.
 - Druk op de trigger van je andere hand om van speelhand te wisselen.

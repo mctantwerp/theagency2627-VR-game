@@ -5,6 +5,7 @@ import { createBall } from './ball.js';
 import { setupPutter } from './putter.js';
 import { setupScore } from './score.js';
 import { setupTeleport } from './teleport.js';
+import { walkWithThumbstick } from './walking.js';
 import { createWorld } from './world.js';
 
 export function startScene() {
@@ -92,7 +93,10 @@ export function startScene() {
 
     ball.update(delta);
     const teleported = teleport.update(renderer.xr, frame);
-    updatePutter(delta, resetting || teleported);
+    const walking = !resetting && !teleported && walkWithThumbstick(
+      frame?.session, rig, teleport.getViewerPosition(), teleport.right, delta, practice,
+    );
+    updatePutter(delta, resetting || teleported || walking);
     score.update();
     world.update(time);
     renderer.render(scene, camera);

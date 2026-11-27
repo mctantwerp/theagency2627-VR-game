@@ -6,6 +6,7 @@ import { setupTeleport } from '../src/teleport.js';
 import { cup } from '../src/course-layout.js';
 import { createPerforatedSurface } from '../src/cup.js';
 import { setupPutter } from '../src/putter.js';
+import { walkWithThumbstick } from '../src/walking.js';
 
 function finishPutt(ball) {
   for (let frame = 0; frame < 900 && !ball.isAtRest() && !ball.isHoled(); frame++) {
@@ -388,5 +389,43 @@ test('calibration fits a natural extended grip without steepening the shaft', ()
   assert.ok(grip.position.equals(pose));
   assert.ok(Math.abs(blade.x - ball.mesh.position.x) < 1e-7);
   assert.ok(Math.abs(blade.z - ball.mesh.position.z - 0.129) < 1e-7);
+  assert.equal(ball.getStrokes(), 0);
+});
+
+test('a blade that dips below the green cannot knock the ball from underneath', () => {
+  const { ball, grip, update } = setupController();
+  const address = grip.position.clone();
+
+  function swingAt(height) {
+    grip.position.copy(address);
+    grip.position.y = height;
+    update(1 / 90, true);
+    for (let frame = 0; frame < 28; frame++) {
+      grip.position.z -= 0.17 / 28;
+      update(1 / 90);
+    }
+  }
+
+  swingAt(address.y - 0.055);
+  assert.equal(ball.getStrokes(), 0);
+  assert.ok(ball.isAtRest());
+
+  swingAt(address.y);
+  assert.equal(ball.getStrokes(), 1);
+});
+
+test('walking past the ball with the thumbstick cannot count as a putt', () => {
+  const { ball, rig, head, update } = setupController();
+  const viewer = new THREE.Vector3(0, 1.65, 0).add(rig.position);
+  const right = new THREE.Vector3(1, 0, 0);
+  const gamepad = { mapping: 'xr-standard', axes: [0, 0, 0, -1], buttons: [] };
+  const session = { visibilityState: 'visible', inputSources: [{ gamepad }] };
+
+  for (let frame = 0; frame < 25; frame++) {
+    const walked = walkWithThumbstick(session, rig, viewer, right, 1 / 90);
+    assert.ok(walked);
+    update(1 / 90, walked);
+  }
+  assert.ok(head.getWorldPosition(new THREE.Vector3()).z < ball.mesh.position.z);
   assert.equal(ball.getStrokes(), 0);
 });
