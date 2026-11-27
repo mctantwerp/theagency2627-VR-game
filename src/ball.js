@@ -1,15 +1,16 @@
 import * as THREE from 'three';
-import { cup, cupEdge, root, spring, teeEdge } from './course-layout.js';
+import { forestCourse, root, spring } from './course-layout.js';
 
 const radius = 0.075;
-const sideLimit = 1.6 - radius;
-const start = new THREE.Vector3(0, radius, -0.65);
 const rootFront = root.z + root.depth / 2 + radius;
 const rootBack = root.z - root.depth / 2 - radius;
 const rootLeft = root.minX - radius;
 const rootRight = root.maxX + radius;
 
-export function createBall(scene, feedback = () => {}, practice = false) {
+export function createBall(scene, feedback = () => {}, practice = false, layout = forestCourse) {
+  const { cup, cupEdge, teeEdge } = layout;
+  const sideLimit = layout.width / 2 - radius;
+  const start = new THREE.Vector3(0, radius, layout.startZ);
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(radius, 16, 12),
     new THREE.MeshStandardMaterial({ color: 0xfff4d8 }),

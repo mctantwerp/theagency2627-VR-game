@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export function setupScore(scene, ball) {
+export function setupScore(scene, ball, room = false) {
   const canvas = document.createElement('canvas');
   canvas.width = 768;
   canvas.height = 256;
@@ -9,10 +9,12 @@ export function setupScore(scene, ball) {
   texture.colorSpace = THREE.SRGBColorSpace;
   const geometry = new THREE.PlaneGeometry(1.06, 0.353);
   const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false });
-  const displays = [[-1.92, -1.2, 0.62], [1.92, -4.65, -0.75]];
+  const displays = room ? [[-0.76, -0.62, 0.55], [0.74, -1.88, -0.45]]
+    : [[-1.92, -1.2, 0.62], [1.92, -4.65, -0.75]];
   for (const [x, z, angle] of displays) {
     const sign = new THREE.Mesh(geometry, material);
-    sign.position.set(x, 1.08, z);
+    sign.position.set(x, room ? 0.45 : 1.08, z);
+    if (room) sign.scale.setScalar(0.62);
     sign.rotation.y = angle;
     scene.add(sign);
   }
@@ -46,7 +48,7 @@ export function setupScore(scene, ball) {
     context.font = '34px system-ui';
     context.fillText(status, 384, 164, 702);
     context.font = '27px system-ui';
-    context.fillText('Duimstick • rondlopen', 384, 213);
+    context.fillText(room ? 'Stap binnen je speelruimte' : 'Duimstick • rondlopen', 384, 213);
     texture.needsUpdate = true;
   }
 

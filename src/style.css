@@ -17,3 +17,22 @@ main button, main a {
   font: inherit;
   cursor: pointer;
 }
+
+#room-start {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.7rem 1rem;
+  border: 1px solid #d5ddad;
+  border-radius: 0.5rem;
+  background: #203b35;
+  color: #f8f1dc;
+  font: inherit;
+  cursor: pointer;
+}
+
+#room-start:disabled {
+  opacity: 0.55;
+  cursor: default;
+}

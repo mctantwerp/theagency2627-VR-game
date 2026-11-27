@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { createAudio } from './audio.js';
 import { createBall } from './ball.js';
+import { forestCourse, roomCourse } from './course-layout.js';
+import { createRoomButton } from './room-button.js';
+import { createRoomCourse, setupRoomPlacement } from './room-course.js';
 import { setupPutter } from './putter.js';
 import { setupScore } from './score.js';
 import { setupTeleport } from './teleport.js';
@@ -10,18 +13,33 @@ import { createWorld } from './world.js';
 
 export function startScene() {
   const scene = new THREE.Scene();
-  const practice = new URLSearchParams(window.location.search).has('practice');
-  const world = createWorld(scene, practice);
+  const mode = new URLSearchParams(window.location.search);
+  const room = mode.has('room');
+  const practice = !room && mode.has('practice');
+  const layout = room ? roomCourse : forestCourse;
+  const course = room ? new THREE.Group() : scene;
+  if (room) {
+    scene.add(course);
+    scene.background = new THREE.Color(0x142721);
+    createRoomCourse(course);
+  }
+  const world = room ? null : createWorld(scene, practice);
   const audio = createAudio();
   let time = 0;
-  const ball = createBall(scene, (event) => {
-    if (event === 'spring') world.bounce(time);
+  const ball = createBall(course, (event) => {
+    if (event === 'spring') world?.bounce(time);
     audio.play(event);
-  }, practice);
-  const score = setupScore(scene, ball);
+  }, practice || room, layout);
+  const score = setupScore(course, ball, room);
   const modeLink = document.getElementById('mode');
-  if (practice) {
-    document.getElementById('course-guide').textContent = 'Vlakke oefenbaan voor grip en korte putts.';
+  const courseGuide = document.getElementById('course-guide');
+  if (room) {
+    courseGuide.textContent = 'Kijk naar een vrije plek op de vloer en druk op de trigger om de baan te plaatsen.';
+    document.getElementById('room-mode').remove();
+  } else if (practice) {
+    courseGuide.textContent = 'Vlakke oefenbaan voor grip en korte putts.';
+  }
+  if (room || practice) {
     modeLink.textContent = 'Naar de bosbaan';
     modeLink.href = './';
   }
@@ -33,7 +51,7 @@ export function startScene() {
   rig.add(camera);
   scene.add(rig);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: room });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.xr.enabled = true;
@@ -45,23 +63,52 @@ export function startScene() {
     soundButton.textContent = muted ? 'Geluid aan' : 'Geluid uit';
     if (!muted) audio.start();
   }
-  const teleport = setupTeleport(scene, rig, ball, practice);
+  const teleport = room ? null : setupTeleport(scene, rig, ball, practice);
+  const placement = room ? setupRoomPlacement(scene, course, rig) : null;
   const updatePutter = setupPutter(renderer, scene, rig, ball, {
-    teleport: teleport.request,
-    getViewerPosition: teleport.getViewerPosition,
-    alignAddress: teleport.alignAddress,
+    teleport: teleport?.request,
+    getViewerPosition: room ? placement.getViewerPosition : teleport.getViewerPosition,
+    alignAddress: teleport?.alignAddress,
+    requestPlacement: placement?.request,
+    canPutt: placement?.canPutt,
+    cup: layout.cup,
+    calibrationKey: room ? 'lichtvallei.putter.room.v1' : undefined,
+    puttHint: room ? 'Stap naar de bal en tik hem aan.' : undefined,
     reset: (hand, stance) => { resetRequest = { hand, stance }; },
     mute: toggleAudio,
     message: score.message,
   });
+
+  let roomReferenceSpace;
+  function clearRoomPlacement() {
+    ball.reset();
+    placement.reset(true);
+    updatePutter(0, true);
+  }
+  if (room) {
+    renderer.xr.addEventListener('sessionstart', () => {
+      scene.background = null;
+      renderer.setClearAlpha(0);
+      clearRoomPlacement();
+      roomReferenceSpace = renderer.xr.getReferenceSpace();
+      roomReferenceSpace.addEventListener('reset', clearRoomPlacement);
+    });
+  }
   renderer.xr.addEventListener('sessionend', () => {
-    rig.position.set(0, 0, 0);
+    if (room) {
+      roomReferenceSpace?.removeEventListener('reset', clearRoomPlacement);
+      scene.background = new THREE.Color(0x142721);
+      placement.reset();
+      ball.reset();
+    } else {
+      rig.position.set(0, 0, 0);
+    }
     camera.position.set(0, 1.6, 3);
     camera.quaternion.identity();
     previousTime = null;
     updatePutter(0);
   });
-  const vrButton = VRButton.createButton(renderer);
+  const vrButton = room ? createRoomButton(renderer, courseGuide) : VRButton.createButton(renderer);
   vrButton.addEventListener('click', audio.start);
   soundButton.addEventListener('click', toggleAudio);
   document.getElementById('reset').addEventListener('click', () => { resetRequest = {}; });
@@ -81,24 +128,26 @@ export function startScene() {
     const resetting = resetRequest !== null;
     if (resetRequest) {
       ball.reset();
-      teleport.cancel();
-      if (resetRequest.hand && renderer.xr.isPresenting) {
-        teleport.request(resetRequest.hand, resetRequest.stance);
-      } else {
-        rig.position.set(0, 0, 0);
-        rig.updateMatrixWorld(true);
+      if (teleport) {
+        teleport.cancel();
+        if (resetRequest.hand && renderer.xr.isPresenting) {
+          teleport.request(resetRequest.hand, resetRequest.stance);
+        } else {
+          rig.position.set(0, 0, 0);
+          rig.updateMatrixWorld(true);
+        }
       }
       resetRequest = null;
     }
 
     ball.update(delta);
-    const teleported = teleport.update(renderer.xr, frame);
-    const walking = !resetting && !teleported && walkWithThumbstick(
+    const relocated = room ? placement.update(renderer.xr, frame) : teleport.update(renderer.xr, frame);
+    const walking = !room && !resetting && !relocated && walkWithThumbstick(
       frame?.session, rig, teleport.getViewerPosition(), teleport.right, delta, practice,
     );
-    updatePutter(delta, resetting || teleported || walking);
+    updatePutter(delta, resetting || relocated || walking);
     score.update();
-    world.update(time);
+    world?.update(time);
     renderer.render(scene, camera);
   });
 }

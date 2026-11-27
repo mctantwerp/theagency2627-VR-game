@@ -48,3 +48,9 @@ Stel `dist/` in als webroot om de game rechtstreeks op het domein te openen. Als
 - Sla om de wortel heen, of gebruik de paarse paddenstoel om met de bal over de wortel te springen.
 
 De melodie en geluidseffecten worden door het project zelf via Web Audio opgebouwd. Er zitten geen opnames, samples of muziekbestanden van derden in de demo.
+
+## Kamerbaan met passthrough
+
+Kies **Kamerbaan met passthrough** in de Quest-browser en start de kamerbaan. Kijk naar een lege plek op de vloer. Het kader toont waar de baan van 1,35 bij 2,35 meter komt. Druk op de trigger om ze te plaatsen.
+
+Loop fysiek binnen de ingestelde speelruimte naar de virtuele bal. Houd grip vast bij de bal en laat los om de putter af te stellen. Sla daarna met de controller. Druk na het uitholen op trigger om opnieuw te spelen op dezelfde plek. Sluit de kamerbaan af en start opnieuw om een andere plek te kiezen.

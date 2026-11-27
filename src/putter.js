@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { cup } from './course-layout.js';
+import { cup as forestCup } from './course-layout.js';
 
 const bladeWidth = 0.16;
 const bladeHeight = 0.044;
@@ -11,7 +11,8 @@ const turfTolerance = 0.001;
 const maxFaceTilt = Math.sin(THREE.MathUtils.degToRad(35));
 const minClubLength = 0.45;
 const maxClubLength = 1.22;
-const calibrationKey = 'lichtvallei.putter.v6';
+const vrCalibrationKey = 'lichtvallei.putter.v6';
+const fixedShaftLean = Math.tan(THREE.MathUtils.degToRad(28));
 const maxShaftLean = Math.tan(THREE.MathUtils.degToRad(20));
 const maxAddressShift = 0.46;
 const up = new THREE.Vector3(0, 1, 0);
@@ -45,7 +46,7 @@ function createPutter() {
   return { club, shaft, handle, head };
 }
 
-function readProfiles() {
+function readProfiles(calibrationKey) {
   try {
     const saved = JSON.parse(globalThis.localStorage?.getItem(calibrationKey) ?? '{}');
     return Object.fromEntries(['left', 'right'].flatMap((hand) => {
@@ -72,7 +73,10 @@ function faceDistanceSquared(point, side) {
 }
 
 export function setupPutter(renderer, scene, rig, ball, controls) {
-  const profiles = readProfiles();
+  const cup = controls.cup ?? forestCup;
+  const calibrationKey = controls.calibrationKey ?? vrCalibrationKey;
+  const puttHint = controls.puttHint ?? readyHint;
+  const profiles = readProfiles(calibrationKey);
   const controllers = [];
   let active;
   let hasPrevious = false;
@@ -114,7 +118,7 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
     hasHandPose = false;
     waitingForBackswing = false;
     averagedVelocity.set(0, 0, 0);
-    controls.message?.(controller?.profile ? readyHint : setupHint);
+    controls.message?.(controller?.profile ? puttHint : setupHint);
   }
 
   function playerStance(controller) {
@@ -138,7 +142,7 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
       controller.preview = null;
       if (controller.connected && (!active || controller.hand === 'right')) {
         select(controller);
-        controls.teleport(controller.hand, playerStance(controller));
+        controls.teleport?.(controller.hand, playerStance(controller));
       }
     });
     target.addEventListener('disconnected', () => {
@@ -147,7 +151,7 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
       if (active === controller) select(controllers.find(candidate => candidate.connected));
     });
     target.addEventListener('squeezestart', () => {
-      if (!controller.connected) return;
+      if (!controller.connected || controls.canPutt?.() === false) return;
       if (controller !== active) {
         controls.mute();
         return;
@@ -159,7 +163,7 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
     target.addEventListener('squeezeend', () => {
       controller.practice = false;
       if (!controller.calibrating) {
-        if (controller === active && controller.profile) controls.message?.(readyHint);
+        if (controller === active && controller.profile) controls.message?.(puttHint);
         return;
       }
       controller.calibrating = false;
@@ -174,12 +178,16 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
     });
     target.addEventListener('selectstart', () => {
       if (!controller.connected) return;
+      if (controls.requestPlacement?.()) {
+        select(controller);
+        return;
+      }
       if (controller !== active) {
         select(controller);
-        controls.teleport(controller.hand, playerStance(controller));
+        controls.teleport?.(controller.hand, playerStance(controller));
       } else if (ball.isHoled()) controls.reset(controller.hand, playerStance(controller));
       else if (controller.practice) controller.calibrating = true;
-      else controls.teleport(controller.hand, playerStance(controller));
+      else controls.teleport?.(controller.hand, playerStance(controller));
     });
   }
 
@@ -193,7 +201,9 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
     direction.subVectors(address, handPosition);
     const horizontalReach = Math.hypot(direction.x, direction.z);
     const comfortableReach = Math.max(0, -direction.y * maxShaftLean);
-    const scale = horizontalReach > comfortableReach ? comfortableReach / horizontalReach : 1;
+    const fixedAddress = !controls.alignAddress;
+    if (fixedAddress && horizontalReach > Math.max(0, -direction.y * fixedShaftLean)) return null;
+    const scale = !fixedAddress && horizontalReach > comfortableReach ? comfortableReach / horizontalReach : 1;
     const shiftX = direction.x * (1 - scale);
     const shiftZ = direction.z * (1 - scale);
     direction.x *= scale;
@@ -215,7 +225,7 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
 
   function saveCalibration(controller) {
     const { offset, rotation, adjustment } = controller.preview;
-    if (Math.hypot(...adjustment) > 0.001 && !controls.alignAddress(...adjustment)) {
+    if (Math.hypot(...adjustment) > 0.001 && !controls.alignAddress?.(...adjustment)) {
       controls.message?.('Zet een klein stapje naar de bal om hier af te stellen.');
       return;
     }
@@ -229,7 +239,7 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
     } catch {
       // The current session can use the calibration without persistent storage.
     }
-    controls.message?.(readyHint);
+    controls.message?.(puttHint);
   }
 
   function detectStrike(position, rotation, delta) {
@@ -294,8 +304,13 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
     const grip = active?.grip;
     const validFrame = delta > 0 && delta <= 0.1;
     if (trackingJump) waitingForBackswing = false;
-    if (!grip?.visible) {
-      if (active) active.club.visible = false;
+    if (!grip?.visible || controls.canPutt?.() === false) {
+      if (active) {
+        active.club.visible = false;
+        active.practice = false;
+        active.calibrating = false;
+        active.preview = null;
+      }
       hasPrevious = hasHandPose = canStrike = false;
       return;
     }

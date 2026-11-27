@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { cup } from './course-layout.js';
+import { cup as forestCup } from './course-layout.js';
 
-export function createPerforatedSurface(outline, width, length) {
+export function createPerforatedSurface(outline, width, length, cup = forestCup) {
   const hole = new THREE.Path();
   hole.absarc(cup.x, -cup.z, cup.radius, 0, Math.PI * 2, true);
   outline.holes.push(hole);
@@ -15,7 +15,7 @@ export function createPerforatedSurface(outline, width, length) {
   return geometry;
 }
 
-export function addCup(scene) {
+export function addCup(scene, cup = forestCup) {
   const liner = new THREE.Mesh(
     new THREE.CylinderGeometry(cup.radius, cup.radius, cup.depth, 48, 1, true),
     new THREE.MeshStandardMaterial({ color: 0xc3c8b3, side: THREE.BackSide, roughness: 0.9 }),
