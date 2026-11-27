@@ -2,14 +2,16 @@ import * as THREE from 'three';
 import { forestCourse, root, spring } from './course-layout.js';
 
 const radius = 0.075;
-const rootFront = root.z + root.depth / 2 + radius;
-const rootBack = root.z - root.depth / 2 - radius;
-const rootLeft = root.minX - radius;
-const rootRight = root.maxX + radius;
+const forestBlockers = [{
+  ...root,
+  minZ: root.z - root.depth / 2,
+  maxZ: root.z + root.depth / 2,
+}];
 
 export function createBall(scene, feedback = () => {}, practice = false, layout = forestCourse) {
-  const { cup, cupEdge, teeEdge } = layout;
-  const sideLimit = layout.width / 2 - radius;
+  let { cup, cupEdge, teeEdge } = layout;
+  let sideLimit = layout.width / 2 - radius;
+  let obstacles = layout.obstacles ?? (practice ? [] : forestBlockers);
   const start = new THREE.Vector3(0, radius, layout.startZ);
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(radius, 16, 12),
@@ -53,6 +55,14 @@ export function createBall(scene, feedback = () => {}, practice = false, layout 
     resetToPreviousPosition();
   }
 
+  function setLayout(next) {
+    ({ cup, cupEdge, teeEdge } = next);
+    sideLimit = next.width / 2 - radius;
+    obstacles = next.obstacles ?? (practice ? [] : forestBlockers);
+    start.z = next.startZ;
+    reset();
+  }
+
   function strike(x, z) {
     if (!isAtRest() || !Number.isFinite(x) || !Number.isFinite(z) || Math.hypot(x, z) === 0) return false;
     previousPosition.copy(mesh.position);
@@ -92,13 +102,19 @@ export function createBall(scene, feedback = () => {}, practice = false, layout 
       position.z = THREE.MathUtils.clamp(position.z, cupEdge + radius, teeEdge - radius);
       velocity.y *= -0.7;
     }
-    if (!practice && position.y < root.height + radius && position.x > rootLeft && position.x < rootRight &&
-        position.z > rootBack && position.z < rootFront) {
-      if (oldZ >= rootFront || oldZ <= rootBack) {
-        position.z = oldZ >= rootFront ? rootFront : rootBack;
+    for (const obstacle of obstacles) {
+      const left = obstacle.minX - radius;
+      const right = obstacle.maxX + radius;
+      const back = obstacle.minZ - radius;
+      const front = obstacle.maxZ + radius;
+      if (position.y >= obstacle.height + radius || position.x <= left || position.x >= right ||
+          position.z <= back || position.z >= front) continue;
+
+      if (oldZ >= front || oldZ <= back) {
+        position.z = oldZ >= front ? front : back;
         velocity.y *= -0.65;
       } else {
-        position.x = oldX < rootLeft ? rootLeft : rootRight;
+        position.x = oldX < left ? left : right;
         velocity.x *= -0.65;
       }
     }
@@ -149,6 +165,6 @@ export function createBall(scene, feedback = () => {}, practice = false, layout 
     }
   }
 
-  return { mesh, radius, strike, update, reset, resetToPreviousPosition, isAtRest,
+  return { mesh, radius, strike, update, reset, resetToPreviousPosition, setLayout, isAtRest,
     isHoled: () => holed, getStrokes: () => strokes };
 }

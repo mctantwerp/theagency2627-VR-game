@@ -73,7 +73,6 @@ function faceDistanceSquared(point, side) {
 }
 
 export function setupPutter(renderer, scene, rig, ball, controls) {
-  const cup = controls.cup ?? forestCup;
   const calibrationKey = controls.calibrationKey ?? vrCalibrationKey;
   const puttHint = controls.puttHint ?? readyHint;
   const profiles = readProfiles(calibrationKey);
@@ -192,6 +191,7 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
   }
 
   function previewCalibration() {
+    const cup = controls.getCup?.() ?? forestCup;
     const { x, z } = ball.mesh.position;
     addressForward.set(cup.x - x, 0, cup.z - z);
     if (addressForward.lengthSq() < 0.01) addressForward.copy(front);

@@ -51,6 +51,6 @@ De melodie en geluidseffecten worden door het project zelf via Web Audio opgebou
 
 ## Kamerbaan met passthrough
 
-Kies **Kamerbaan met passthrough** in de Quest-browser en start de kamerbaan. Kijk naar een lege plek op de vloer. Het kader toont waar de baan van 1,35 bij 2,35 meter komt. Druk op de trigger om ze te plaatsen.
+Kies **Kamerbaan met passthrough** in de Quest-browser en start de kamerbaan. Kies tussen **Rechte putt**, **Smalle poort** en **Slalom** met de duimstick naar links of rechts, of met A en B op je rechtercontroller. Kijk naar een lege plek op de vloer. In het kader van 1,35 bij 2,35 meter zie je de obstakels en de cup van de gekozen baan. Druk op de trigger om ze te plaatsen.
 
 Loop fysiek binnen de ingestelde speelruimte naar de virtuele bal. Houd grip vast bij de bal en laat los om de putter af te stellen. Sla daarna met de controller. Druk na het uitholen op trigger om opnieuw te spelen op dezelfde plek. Sluit de kamerbaan af en start opnieuw om een andere plek te kiezen.

@@ -16,12 +16,13 @@ export function startScene() {
   const mode = new URLSearchParams(window.location.search);
   const room = mode.has('room');
   const practice = !room && mode.has('practice');
-  const layout = room ? roomCourse : forestCourse;
+  let layout = room ? roomCourse : forestCourse;
+  let showRoomCourse;
   const course = room ? new THREE.Group() : scene;
   if (room) {
     scene.add(course);
     scene.background = new THREE.Color(0x142721);
-    createRoomCourse(course);
+    showRoomCourse = createRoomCourse(course);
   }
   const world = room ? null : createWorld(scene, practice);
   const audio = createAudio();
@@ -34,7 +35,7 @@ export function startScene() {
   const modeLink = document.getElementById('mode');
   const courseGuide = document.getElementById('course-guide');
   if (room) {
-    courseGuide.textContent = 'Kijk naar een vrije plek op de vloer en druk op de trigger om de baan te plaatsen.';
+    courseGuide.textContent = 'Kies een baan met de duimstick of A/B. Kijk naar vrije vloer en plaats de baan met de trigger.';
     document.getElementById('room-mode').remove();
   } else if (practice) {
     courseGuide.textContent = 'Vlakke oefenbaan voor grip en korte putts.';
@@ -64,14 +65,18 @@ export function startScene() {
     if (!muted) audio.start();
   }
   const teleport = room ? null : setupTeleport(scene, rig, ball, practice);
-  const placement = room ? setupRoomPlacement(scene, course, rig) : null;
+  const placement = room ? setupRoomPlacement(scene, course, rig, (next, index) => {
+    layout = next;
+    ball.setLayout(next);
+    showRoomCourse(index);
+  }) : null;
   const updatePutter = setupPutter(renderer, scene, rig, ball, {
     teleport: teleport?.request,
     getViewerPosition: room ? placement.getViewerPosition : teleport.getViewerPosition,
     alignAddress: teleport?.alignAddress,
     requestPlacement: placement?.request,
     canPutt: placement?.canPutt,
-    cup: layout.cup,
+    getCup: () => layout.cup,
     calibrationKey: room ? 'lichtvallei.putter.room.v1' : undefined,
     puttHint: room ? 'Stap naar de bal en tik hem aan.' : undefined,
     reset: (hand, stance) => { resetRequest = { hand, stance }; },

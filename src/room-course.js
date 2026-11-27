@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { roomCourse } from './course-layout.js';
+import { defaultRoomCourseIndex, roomCourse, roomCourses } from './course-layout.js';
 import { createTurfMaterial } from './course-materials.js';
 import { addCup, createPerforatedSurface } from './cup.js';
 
@@ -17,19 +17,46 @@ function outlineCorners(y = 0) {
   ];
 }
 
+function addRoomFeatures(parent, layout, preview = false) {
+  const obstacleMaterial = preview
+    ? new THREE.MeshBasicMaterial({ color: 0xeaba72, transparent: true, opacity: 0.72, depthWrite: false })
+    : new THREE.MeshStandardMaterial({ color: 0xb47741, roughness: 0.8 });
+  for (const obstacle of layout.obstacles) {
+    const { minX, maxX, minZ, maxZ, height } = obstacle;
+    const bumper = new THREE.Mesh(new THREE.BoxGeometry(maxX - minX, height, maxZ - minZ), obstacleMaterial);
+    bumper.position.set((minX + maxX) / 2, height / 2, (minZ + maxZ) / 2);
+    parent.add(bumper);
+  }
+
+  const { x, z, radius } = layout.cup;
+  const rim = new THREE.Mesh(
+    new THREE.RingGeometry(radius, radius + 0.016, 40),
+    new THREE.MeshBasicMaterial({ color: 0xffd47d }),
+  );
+  rim.rotation.x = -Math.PI / 2;
+  rim.position.set(x, preview ? 0.016 : 0.004, z);
+  parent.add(rim);
+}
+
 export function createRoomCourse(parent) {
   parent.add(new THREE.HemisphereLight(0xe8f6f2, 0x536659, 2.1));
   const light = new THREE.DirectionalLight(0xffe8bd, 1.6);
   light.position.set(-1, 3, 1);
   parent.add(light);
 
-  const outline = new THREE.Shape(outlineCorners().map(({ x, z }) => new THREE.Vector2(x, -z)));
   const turf = createTurfMaterial();
   turf.map.repeat.set(3, 5);
-  const green = new THREE.Mesh(createPerforatedSurface(outline, roomCourse.width, length, roomCourse.cup), turf);
-  green.position.y = 0.002;
-  parent.add(green);
-  addCup(parent, roomCourse.cup);
+  const variants = roomCourses.map((layout) => {
+    const variant = new THREE.Group();
+    const outline = new THREE.Shape(outlineCorners().map(({ x, z }) => new THREE.Vector2(x, -z)));
+    const green = new THREE.Mesh(createPerforatedSurface(outline, layout.width, length, layout.cup), turf);
+    green.position.y = 0.002;
+    variant.add(green);
+    addCup(variant, layout.cup);
+    addRoomFeatures(variant, layout);
+    parent.add(variant);
+    return variant;
+  });
 
   const rail = new THREE.MeshStandardMaterial({ color: 0x234938, roughness: 0.75 });
   const longRail = new THREE.BoxGeometry(0.036, 0.065, length + 0.036);
@@ -44,15 +71,7 @@ export function createRoomCourse(parent) {
     mesh.position.set(0, 0.033, z);
     parent.add(mesh);
   }
-
-  const { x, z, radius } = roomCourse.cup;
-  const rim = new THREE.Mesh(
-    new THREE.RingGeometry(radius, radius + 0.016, 40),
-    new THREE.MeshBasicMaterial({ color: 0xffd47d }),
-  );
-  rim.rotation.x = -Math.PI / 2;
-  rim.position.set(x, 0.004, z);
-  parent.add(rim);
+  return (index) => variants.forEach((variant, position) => { variant.visible = position === index; });
 }
 
 export function getRoomPlacement(pose, point, orientation, direction) {
@@ -67,7 +86,7 @@ export function getRoomPlacement(pose, point, orientation, direction) {
   return Math.atan2(-direction.x, -direction.z);
 }
 
-export function setupRoomPlacement(scene, course, rig) {
+export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
   const guide = new THREE.Group();
   const outline = new THREE.LineLoop(
     new THREE.BufferGeometry().setFromPoints(outlineCorners(0.015)),
@@ -83,15 +102,21 @@ export function setupRoomPlacement(scene, course, rig) {
   tee.rotation.x = -Math.PI / 2;
   tee.position.set(0, 0.016, roomCourse.startZ);
   guide.add(outline, footprint, tee);
+  const previews = roomCourses.map((layout) => {
+    const variant = new THREE.Group();
+    addRoomFeatures(variant, layout, true);
+    guide.add(variant);
+    return variant;
+  });
 
   const canvas = document.createElement('canvas');
   canvas.width = 768;
-  canvas.height = 144;
+  canvas.height = 214;
   const context = canvas.getContext('2d');
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   const prompt = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false }));
-  prompt.scale.set(0.72, 0.135, 1);
+  prompt.scale.set(0.72, 0.202, 1);
   prompt.renderOrder = 1;
   scene.add(guide, prompt);
 
@@ -99,13 +124,46 @@ export function setupRoomPlacement(scene, course, rig) {
   const orientation = new THREE.Quaternion();
   const direction = new THREE.Vector3();
   const viewerPosition = new THREE.Vector3();
+  let selected = defaultRoomCourseIndex;
+  let stickHeld = false;
+  let aHeld = false;
+  let bHeld = false;
   let placed = false;
   let requested = false;
   let viewerTracked = false;
   let promptText;
 
+  function select(index) {
+    selected = (index + roomCourses.length) % roomCourses.length;
+    previews.forEach((variant, position) => { variant.visible = position === selected; });
+    onSelect(roomCourses[selected], selected);
+  }
+
+  function cycle(inputSources) {
+    let axis = 0;
+    let a = false;
+    let b = false;
+    for (const { handedness, gamepad } of inputSources) {
+      if (gamepad?.mapping !== 'xr-standard') continue;
+      const horizontal = gamepad.axes[2] ?? 0;
+      if (Math.abs(horizontal) > Math.abs(axis)) axis = horizontal;
+      if (handedness === 'right') {
+        a ||= gamepad.buttons[4]?.pressed ?? false;
+        b ||= gamepad.buttons[5]?.pressed ?? false;
+      }
+    }
+    const stickStep = !stickHeld && Math.abs(axis) >= 0.55 ? Math.sign(axis) : 0;
+    const buttonStep = Number(b && !bHeld) - Number(a && !aHeld);
+    stickHeld = Math.abs(axis) >= (stickHeld ? 0.3 : 0.55);
+    aHeld = a;
+    bHeld = b;
+    const step = buttonStep || stickStep;
+    if (step) select(selected + step);
+  }
+
   function reset(immersive = false) {
     placed = requested = viewerTracked = false;
+    stickHeld = aHeld = bHeld = false;
     guide.visible = prompt.visible = false;
     course.visible = !immersive;
     rig.position.set(0, 0, 0);
@@ -143,6 +201,7 @@ export function setupRoomPlacement(scene, course, rig) {
       return true;
     }
     requested = false;
+    cycle(frame.session.inputSources ?? []);
     guide.visible = valid;
     if (valid) {
       guide.position.copy(origin);
@@ -154,21 +213,28 @@ export function setupRoomPlacement(scene, course, rig) {
     direction.set(0, 0, -1).applyQuaternion(orientation);
     prompt.position.copy(position).addScaledVector(direction, 0.92);
     prompt.position.y += 0.13;
-    const text = valid ? 'Trigger • plaats de baan' : 'Kijk naar een vrije plek op de vloer';
+    const instruction = valid ? 'Trigger • plaatsen' : 'Kijk naar een vrije plek op de vloer';
+    const title = roomCourses[selected].name;
+    const text = title + instruction;
     if (promptText !== text) {
       promptText = text;
       context.fillStyle = '#18372f';
       context.fillRect(0, 0, canvas.width, canvas.height);
       context.fillStyle = '#fff1ce';
-      context.font = '600 43px system-ui';
+      context.font = '600 48px system-ui';
       context.textAlign = 'center';
       context.textBaseline = 'middle';
-      context.fillText(text, canvas.width / 2, canvas.height / 2, canvas.width - 42);
+      context.fillText(title, canvas.width / 2, 52, canvas.width - 42);
+      context.font = '35px system-ui';
+      context.fillText(instruction, canvas.width / 2, 111, canvas.width - 42);
+      context.font = '30px system-ui';
+      context.fillText('Duimstick links/rechts of A/B • Kies baan', canvas.width / 2, 166, canvas.width - 42);
       texture.needsUpdate = true;
     }
     return false;
   }
 
+  select(selected);
   reset();
   return {
     reset, request, update,
