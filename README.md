@@ -33,7 +33,7 @@ npm ci
 npm run build
 ```
 
-Stel `dist/` in als webroot om de game rechtstreeks op het domein te openen. Als de webroot de projectmap is, kun je de build openen via `/dist/`. De build gebruikt relatieve paden en draait op een statische HTTPS-webserver.
+Stel `dist/` in als webroot om de game rechtstreeks op het domein te openen. Als de webroot de projectmap is, stuurt de bronpagina je door naar `/dist/`. De build gebruikt relatieve paden en draait op een statische HTTPS-webserver.
 
 ## Spelen op Quest 3
 

@@ -1,9 +1,17 @@
 <!doctype html>
-<html lang="nl">
+<html lang="nl" data-vite-mode="%MODE%">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>De Lichtvallei</title>
+  <script>
+    if (document.documentElement.dataset.viteMode.startsWith('%')) {
+      const buildUrl = new URL('./dist/', window.location.href);
+      buildUrl.search = window.location.search;
+      buildUrl.hash = window.location.hash;
+      window.location.replace(buildUrl);
+    }
+  </script>
 </head>
 <body>
   <main>
