@@ -1,50 +1,57 @@
-const paper = '#f5f0e4';
-const ink = '#202d26';
-const subdued = '#4d5a51';
+const surface = '#152523';
+const ink = '#fbf7e9';
+const subdued = '#cbd8ce';
+const highlight = '#f4c768';
+const font = 'Manrope, system-ui, sans-serif';
+
+export function loadRoomTypeface(invalidate) {
+  globalThis.document?.fonts?.load('600 28px Manrope').then(invalidate).catch(() => {});
+}
 
 export function drawRoomPanel(context, width, height) {
   context.clearRect(0, 0, width, height);
-  context.fillStyle = paper;
-  context.fillRect(0, 0, width, height);
-  context.fillStyle = '#355746';
-  context.fillRect(0, 0, 8, height);
+  context.fillStyle = surface;
+  context.beginPath();
+  context.roundRect(1, 1, width - 2, height - 2, 17);
+  context.fill();
   context.textAlign = 'left';
   context.textBaseline = 'middle';
 }
 
 export function drawRoomHeading(context, title, detail, meta = '') {
-  context.fillStyle = subdued;
-  context.font = '600 23px system-ui';
+  context.fillStyle = highlight;
+  context.font = `700 24px ${font}`;
   context.textAlign = 'left';
-  context.fillText(detail, 37, 32);
+  context.fillText(detail, 32, 29);
   context.textAlign = 'right';
-  context.fillText(meta, 733, 32);
+  context.fillStyle = subdued;
+  context.fillText(meta, 736, 29);
   context.textAlign = 'left';
   context.fillStyle = ink;
-  context.font = '600 50px Georgia, serif';
-  context.fillText(title, 35, 83, 698);
-  context.fillStyle = '#c8cabc';
-  context.fillRect(36, 119, 696, 2);
+  context.font = `800 52px ${font}`;
+  context.fillText(title, 30, 78, 706);
+  context.fillStyle = '#41544e';
+  context.fillRect(32, 111, 704, 2);
 }
 
 export function drawRoomAction(context, action, key, y, primary = false) {
   if (primary) {
-    context.fillStyle = '#355746';
-    context.fillRect(36, y - 20, 696, 40);
+    context.fillStyle = highlight;
+    context.fillRect(32, y - 21, 704, 42);
   }
-  context.fillStyle = primary ? paper : ink;
+  context.fillStyle = primary ? surface : ink;
   context.textAlign = 'left';
-  context.font = '600 27px system-ui';
-  context.fillText(action, 49, y, key ? 425 : 670);
+  context.font = `750 30px ${font}`;
+  context.fillText(action, 46, y, key ? 380 : 675);
   context.textAlign = 'right';
-  context.font = '600 22px system-ui';
-  context.fillText(key, 719, y, 230);
+  context.font = `700 25px ${font}`;
+  context.fillText(key, 722, y, 274);
   context.textAlign = 'left';
 }
 
 export function drawRoomNote(context, text, x, y, width) {
   context.textAlign = 'left';
   context.fillStyle = subdued;
-  context.font = '500 22px system-ui';
+  context.font = `650 26px ${font}`;
   context.fillText(text, x, y, width);
 }

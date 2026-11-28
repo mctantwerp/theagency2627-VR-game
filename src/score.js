@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { drawRoomAction, drawRoomHeading, drawRoomNote, drawRoomPanel } from './room-ui.js';
+import { drawRoomAction, drawRoomHeading, drawRoomNote, drawRoomPanel, loadRoomTypeface } from './room-ui.js';
 
 export function setupScore(scene, ball, room = false) {
   const canvas = document.createElement('canvas');
@@ -14,14 +14,18 @@ export function setupScore(scene, ball, room = false) {
     : [[-1.92, -1.2, 0.62], [1.92, -4.65, -0.75]];
   for (const [x, z, angle] of displays) {
     const sign = new THREE.Mesh(geometry, material);
-    sign.position.set(x, room ? 0.45 : 1.08, z);
-    if (room) sign.scale.setScalar(0.62);
+    sign.position.set(x, room ? 0.52 : 1.08, z);
+    if (room) {
+      sign.scale.setScalar(0.72);
+      sign.rotation.x = -0.32;
+    }
     sign.rotation.y = angle;
     scene.add(sign);
   }
   const desktopScore = document.getElementById('score');
   let previousText;
   let previousHint;
+  if (room) loadRoomTypeface(() => { previousText = undefined; });
   let hint = 'Houd grip vast om de putter af te stellen.';
   const desktopHint = document.getElementById('putter-guide');
 

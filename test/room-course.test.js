@@ -56,6 +56,14 @@ test('the room preview stages two courses and plays them at their saved poses in
   assert.equal(course.visible, false);
   const preview = scene.children[2];
   assert.ok(preview.visible);
+  const panel = scene.children[3];
+  assert.ok(panel.position.distanceTo(new Vector3(0.21, -0.16, -1.02).add(pose.transform.position)) < 1e-8);
+  pose = poseAt(1, 1.65, 2, -0.4, 0.3);
+  placement.update(xr, frame);
+  const panelInView = panel.position.clone().sub(pose.transform.position)
+    .applyQuaternion(pose.transform.orientation.clone().invert());
+  assert.ok(panelInView.distanceTo(new Vector3(0.21, -0.16, -1.02)) < 1e-8);
+  pose = poseAt(1, 1.65, 2, 0);
   left.buttons[5] = { pressed: true };
   placement.update(xr, frame);
   assert.notEqual(appearance.name(), initialStyle);

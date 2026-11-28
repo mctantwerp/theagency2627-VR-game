@@ -4,7 +4,7 @@ import { defaultRoomCourseIndex, roomCourse, roomCourses } from './course-layout
 import { addCup } from './cup.js';
 import { addLoopTrack } from './loop-track.js';
 import { createRoomAppearance } from './room-appearance.js';
-import { drawRoomAction, drawRoomHeading, drawRoomNote, drawRoomPanel } from './room-ui.js';
+import { drawRoomAction, drawRoomHeading, drawRoomNote, drawRoomPanel, loadRoomTypeface } from './room-ui.js';
 import { controllerGamepad } from './xr-controls.js';
 
 const up = new THREE.Vector3(0, 1, 0);
@@ -152,12 +152,12 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}, appe
 
   const canvas = document.createElement('canvas');
   canvas.width = 768;
-  canvas.height = 318;
+  canvas.height = 306;
   const context = canvas.getContext('2d');
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   const prompt = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false, depthWrite: false, transparent: true }));
-  prompt.scale.set(0.70, 0.29, 1);
+  prompt.scale.set(0.68, 0.271, 1);
   prompt.renderOrder = 1;
   scene.add(guide, prompt, savedOutlines);
 
@@ -180,6 +180,7 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}, appe
   let triggerReleased = false;
   let striking = false;
   let promptText;
+  loadRoomTypeface(() => { promptText = undefined; });
 
   function select(index) {
     selected = (index + roomCourses.length) % roomCourses.length;
@@ -304,9 +305,9 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}, appe
     guide.rotation.y = yaw;
 
     prompt.visible = true;
-    direction.set(0, 0, -1).applyQuaternion(orientation);
-    prompt.position.copy(position).addScaledVector(direction, 0.92);
-    prompt.position.y += 0.25;
+    // Offset in headset space, so nodding does not move the prompt above the viewer's gaze.
+    direction.set(0.21, -0.16, -1.02).applyQuaternion(orientation);
+    prompt.position.copy(position).add(direction);
     const title = roomCourses[selected].name;
     const count = queue.length === 1 ? '1 baan klaar' : `${queue.length} banen klaar`;
     const style = appearance.name();
@@ -314,14 +315,18 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}, appe
     if (promptText !== text) {
       promptText = text;
       drawRoomPanel(context, canvas.width, canvas.height);
-      drawRoomHeading(context, title, `Baan ${selected + 1} van ${roomCourses.length}`, count);
-      drawRoomAction(context, 'Baan toevoegen', 'Trekker', 153, !queue.length);
-      if (queue.length) drawRoomAction(context, 'Ronde spelen', 'Rechterstick indrukken', 198, true);
-      drawRoomNote(context, 'Linkerstick · Schuiven', 37, 245, 330);
-      drawRoomNote(context, 'Rechterstick ← → · Draaien', 405, 245, 327);
-      drawRoomNote(context, 'A/B · Andere baan', 37, 276, 330);
-      drawRoomNote(context, `Y · Stijl: ${style}`, 405, 276, 327);
-      drawRoomNote(context, 'X vasthouden · Startscherm', 37, 302, 330);
+      drawRoomHeading(context, title, 'A/B · Baan kiezen', count);
+      if (queue.length) {
+        drawRoomAction(context, 'Ronde spelen', 'Rechterstick indrukken', 142, true);
+        drawRoomAction(context, 'Baan toevoegen', 'Trekker', 190);
+      } else {
+        drawRoomAction(context, 'Baan toevoegen', 'Trekker', 142, true);
+      }
+      const controlsY = queue.length ? 233 : 195;
+      drawRoomNote(context, 'Linkerstick · Schuiven', 32, controlsY, 332);
+      drawRoomNote(context, 'Rechterstick ↔ · Draaien', 403, controlsY, 333);
+      drawRoomNote(context, `Y · ${style}`, 32, controlsY + 39, 332);
+      drawRoomNote(context, 'X vasthouden · Stoppen', 403, controlsY + 39, 333);
       texture.needsUpdate = true;
     }
     return false;
