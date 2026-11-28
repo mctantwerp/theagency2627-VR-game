@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { drawRoomAction, drawRoomHeading, drawRoomNote, drawRoomPanel } from './room-ui.js';
 
 export function setupScore(scene, ball, room = false) {
   const canvas = document.createElement('canvas');
@@ -42,6 +43,21 @@ export function setupScore(scene, ball, room = false) {
     previousHint = status;
     desktopScore.textContent = message;
     desktopHint.textContent = status;
+    if (room) {
+      drawRoomPanel(context, canvas.width, canvas.height);
+      const heading = round ? `Baan ${round.current} van ${round.total}` : 'Kamerbaan';
+      drawRoomHeading(context, result, heading);
+      if (round && ball.isHoled()) {
+        const action = round.current < round.total ? 'Volgende baan' : 'Banen plaatsen';
+        drawRoomAction(context, action, 'Rechtertrekker', 158, true);
+      } else {
+        drawRoomAction(context, status, '', 158);
+      }
+      drawRoomNote(context, 'Rechterstick indrukken · Nieuwe ronde', 37, 221, 425);
+      drawRoomNote(context, 'X vasthouden · Startscherm', 460, 221, 272);
+      texture.needsUpdate = true;
+      return;
+    }
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = '#182f2b';
     context.beginPath();
@@ -55,9 +71,7 @@ export function setupScore(scene, ball, room = false) {
     context.font = '34px system-ui';
     context.fillText(status, 384, 164, 702);
     context.font = '27px system-ui';
-    const footer = room ? 'Klik rechterduimstick • Nieuwe ronde   |   Houd X vast • Startscherm'
-      : 'Duimstick • Rondlopen   |   Houd X vast • Startscherm';
-    context.fillText(footer, 384, 213, 702);
+    context.fillText('Duimstick • Rondlopen   |   Houd X vast • Startscherm', 384, 213, 702);
     texture.needsUpdate = true;
   }
 

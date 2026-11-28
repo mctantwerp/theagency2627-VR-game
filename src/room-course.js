@@ -1,7 +1,10 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { defaultRoomCourseIndex, roomCourse, roomCourses } from './course-layout.js';
 import { addCup } from './cup.js';
 import { addLoopTrack } from './loop-track.js';
+import { createRoomAppearance } from './room-appearance.js';
+import { drawRoomAction, drawRoomHeading, drawRoomNote, drawRoomPanel } from './room-ui.js';
 import { controllerGamepad } from './xr-controls.js';
 
 const up = new THREE.Vector3(0, 1, 0);
@@ -18,38 +21,87 @@ function outlineCorners(y = 0) {
   ];
 }
 
-function addRoomFeatures(parent, layout, preview = false) {
-  if (layout.loop) addLoopTrack(parent, layout.loop, preview);
-  const obstacleMaterial = preview
-    ? new THREE.MeshBasicMaterial({ color: 0xeaba72, transparent: true, opacity: 0.72, depthWrite: false })
-    : new THREE.MeshStandardMaterial({ color: 0xb47741, roughness: 0.8 });
-  const bumperMaterial = preview
-    ? obstacleMaterial
-    : new THREE.MeshStandardMaterial({ color: 0x40897e, roughness: 0.7 });
+function addRoomFeatures(parent, layout, materials, preview = false) {
+  if (layout.loop) addLoopTrack(parent, layout.loop, materials, preview);
   for (const obstacle of layout.obstacles) {
     const { x, z, radius, minX, maxX, minZ, maxZ, height } = obstacle;
     if (radius) {
-      const bumper = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, height, 32), bumperMaterial);
+      const bumper = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, height, 32), materials.bumper ?? materials.body);
       bumper.position.set(x, height / 2, z);
       parent.add(bumper);
+      if (!preview) {
+        const cap = new THREE.Mesh(new THREE.CircleGeometry(radius * 0.73, 32), materials.trim);
+        cap.rotation.x = -Math.PI / 2;
+        cap.position.set(x, height + 0.001, z);
+        const ring = new THREE.Mesh(new THREE.RingGeometry(radius * 0.76, radius * 0.87, 32), materials.accent);
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.copy(cap.position);
+        parent.add(cap, ring);
+      }
     } else {
-      const block = new THREE.Mesh(new THREE.BoxGeometry(maxX - minX, height, maxZ - minZ), obstacleMaterial);
+      const width = maxX - minX;
+      const depth = maxZ - minZ;
+      const shape = new RoundedBoxGeometry(width, height, depth, 2, 0.014);
+      const block = new THREE.Mesh(shape, materials.body);
       block.position.set((minX + maxX) / 2, height / 2, (minZ + maxZ) / 2);
       parent.add(block);
+      if (!preview) {
+        const inlay = new THREE.Mesh(new RoundedBoxGeometry(width - 0.05, 0.004, 0.018, 1, 0.002), materials.trim);
+        inlay.position.copy(block.position).setY(height);
+        parent.add(inlay);
+      }
     }
   }
 
   const { x, z, radius } = layout.cup;
   const rim = new THREE.Mesh(
     new THREE.RingGeometry(radius, radius + 0.016, 40),
-    new THREE.MeshBasicMaterial({ color: 0xffd47d }),
+    preview ? materials.accent : materials.trim,
   );
   rim.rotation.x = -Math.PI / 2;
   rim.position.set(x, preview ? 0.016 : 0.004, z);
   parent.add(rim);
 }
 
-export function createRoomCourse(parent) {
+function addRoomRails(parent, materials) {
+  const segments = [
+    { x: -halfWidth - 0.018, z: middle, size: length + 0.036, pieces: 3, turn: Math.PI / 2 },
+    { x: halfWidth + 0.018, z: middle, size: length + 0.036, pieces: 3, turn: Math.PI / 2 },
+    { x: 0, z: roomCourse.teeEdge + 0.018, size: roomCourse.width + 0.072, pieces: 1, turn: 0 },
+    { x: 0, z: roomCourse.cupEdge - 0.018, size: roomCourse.width + 0.072, pieces: 1, turn: 0 },
+  ];
+  const boltGeometry = new THREE.CylinderGeometry(0.004, 0.004, 0.002, 8);
+  const boltMatrix = new THREE.Matrix4();
+  const boltCount = segments.reduce((count, rail) => count + rail.pieces * 2, 0);
+  const bolts = new THREE.InstancedMesh(boltGeometry, materials.trim, boltCount);
+  let boltIndex = 0;
+
+  for (const { x, z, size, pieces, turn } of segments) {
+    const rail = new THREE.Group();
+    rail.position.set(x, 0, z);
+    rail.rotation.y = turn;
+    parent.add(rail);
+    rail.updateMatrix();
+    const foot = new THREE.Mesh(new RoundedBoxGeometry(size, 0.014, 0.036, 1, 0.004), materials.foot);
+    foot.position.y = 0.007;
+    rail.add(foot);
+    const sectionLength = size / pieces;
+    const sectionShape = new RoundedBoxGeometry(sectionLength - 0.004, 0.051, 0.036, 2, 0.006);
+    for (let section = 0; section < pieces; section++) {
+      const center = -size / 2 + sectionLength * (section + 0.5);
+      const profile = new THREE.Mesh(sectionShape, materials.body);
+      profile.position.set(center, 0.0395, 0);
+      rail.add(profile);
+      for (const offset of [-sectionLength / 2 + 0.026, sectionLength / 2 - 0.026]) {
+        boltMatrix.makeTranslation(center + offset, 0.065, 0).premultiply(rail.matrix);
+        bolts.setMatrixAt(boltIndex++, boltMatrix);
+      }
+    }
+  }
+  parent.add(bolts);
+}
+
+export function createRoomCourse(parent, materials = createRoomAppearance().play) {
   parent.add(new THREE.HemisphereLight(0xe8f6f2, 0x536659, 2.1));
   const light = new THREE.DirectionalLight(0xffe8bd, 1.6);
   light.position.set(-1, 3, 1);
@@ -58,23 +110,18 @@ export function createRoomCourse(parent) {
   const variants = roomCourses.map((layout) => {
     const variant = new THREE.Group();
     addCup(variant, layout.cup);
-    addRoomFeatures(variant, layout);
+    addRoomFeatures(variant, layout, materials);
     parent.add(variant);
     return variant;
   });
 
-  const rail = new THREE.MeshStandardMaterial({ color: 0x234938, roughness: 0.75 });
-  const longRail = new THREE.BoxGeometry(0.036, 0.065, length + 0.036);
-  for (const side of [-1, 1]) {
-    const mesh = new THREE.Mesh(longRail, rail);
-    mesh.position.set(side * (halfWidth + 0.018), 0.033, middle);
-    parent.add(mesh);
-  }
-  const endRail = new THREE.BoxGeometry(roomCourse.width + 0.072, 0.065, 0.036);
-  for (const z of [roomCourse.cupEdge - 0.018, roomCourse.teeEdge + 0.018]) {
-    const mesh = new THREE.Mesh(endRail, rail);
-    mesh.position.set(0, 0.033, z);
-    parent.add(mesh);
+  addRoomRails(parent, materials);
+  const teeDash = new THREE.PlaneGeometry(0.042, 0.015);
+  for (const x of [-0.12, 0.12]) {
+    const mark = new THREE.Mesh(teeDash, materials.accent);
+    mark.rotation.x = -Math.PI / 2;
+    mark.position.set(x, 0.005, roomCourse.startZ);
+    parent.add(mark);
   }
   return (index) => variants.forEach((variant, position) => { variant.visible = position === index; });
 }
@@ -83,13 +130,13 @@ function stickAmount(value) {
   return Math.sign(value) * THREE.MathUtils.clamp((Math.abs(value) - 0.18) / 0.82, 0, 1);
 }
 
-export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
+export function setupRoomPlacement(scene, course, rig, onSelect = () => {}, appearance = createRoomAppearance()) {
   const guide = new THREE.Group();
   const outline = new THREE.LineLoop(
     new THREE.BufferGeometry().setFromPoints(outlineCorners(0.015)),
-    new THREE.LineBasicMaterial({ color: 0xf8dd92 }),
+    new THREE.LineBasicMaterial({ color: appearance.preview.accent.color }),
   );
-  const tee = new THREE.Mesh(new THREE.RingGeometry(0.078, 0.092, 28), new THREE.MeshBasicMaterial({ color: 0xf8dd92 }));
+  const tee = new THREE.Mesh(new THREE.RingGeometry(0.078, 0.092, 28), appearance.preview.accent);
   tee.rotation.x = -Math.PI / 2;
   tee.position.set(0, 0.016, roomCourse.startZ);
   guide.add(outline, tee);
@@ -98,19 +145,19 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
   const queue = [];
   const previews = roomCourses.map((layout) => {
     const variant = new THREE.Group();
-    addRoomFeatures(variant, layout, true);
+    addRoomFeatures(variant, layout, appearance.preview, true);
     guide.add(variant);
     return variant;
   });
 
   const canvas = document.createElement('canvas');
   canvas.width = 768;
-  canvas.height = 356;
+  canvas.height = 318;
   const context = canvas.getContext('2d');
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  const prompt = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false }));
-  prompt.scale.set(0.76, 0.352, 1);
+  const prompt = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false, depthWrite: false, transparent: true }));
+  prompt.scale.set(0.70, 0.29, 1);
   prompt.renderOrder = 1;
   scene.add(guide, prompt, savedOutlines);
 
@@ -126,6 +173,7 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
   let bHeld = false;
   let activeIndex = -1;
   let stickHeld = false;
+  let yHeld = false;
   let requested = false;
   let advanceRequested = false;
   let viewerTracked = false;
@@ -154,7 +202,7 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
     savedOutlines.clear();
     requested = advanceRequested = viewerTracked = hasPreview = false;
     triggerReleased = striking = false;
-    aHeld = bHeld = stickHeld = false;
+    aHeld = bHeld = stickHeld = yHeld = false;
     guide.visible = prompt.visible = false;
     course.visible = !immersive;
     rig.position.set(0, 0, 0);
@@ -202,6 +250,9 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
     const { position, orientation: view } = pose.transform;
     const left = controllerGamepad(frame.session.inputSources, 'left');
     const right = controllerGamepad(frame.session.inputSources, 'right');
+    const yPressed = left?.buttons[5]?.pressed ?? false;
+    const styleRequested = yPressed && !yHeld;
+    yHeld = yPressed;
     const stickPressed = right?.buttons[3]?.pressed ?? false;
     const stickClicked = stickPressed && !stickHeld;
     stickHeld = stickPressed;
@@ -239,6 +290,10 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
       hasPreview = true;
     }
     cycle(right);
+    if (styleRequested) {
+      appearance.next();
+      outline.material.color.copy(appearance.preview.accent.color);
+    }
     const dt = Math.min(delta, 0.05);
     direction.set(stickAmount(left?.axes[2] ?? 0), 0, stickAmount(left?.axes[3] ?? 0));
     direction.clampLength(0, 1).applyAxisAngle(up, viewerYaw);
@@ -252,25 +307,21 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
     direction.set(0, 0, -1).applyQuaternion(orientation);
     prompt.position.copy(position).addScaledVector(direction, 0.92);
     prompt.position.y += 0.25;
-    const title = `${roomCourses[selected].name} (${selected + 1}/${roomCourses.length})`;
+    const title = roomCourses[selected].name;
     const count = queue.length === 1 ? '1 baan klaar' : `${queue.length} banen klaar`;
-    const text = title + count;
+    const style = appearance.name();
+    const text = title + count + style;
     if (promptText !== text) {
       promptText = text;
-      context.fillStyle = '#18372f';
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      context.fillStyle = '#fff1ce';
-      context.font = '600 48px system-ui';
-      context.textAlign = 'center';
-      context.textBaseline = 'middle';
-      context.fillText(title, canvas.width / 2, 52, canvas.width - 42);
-      context.font = '30px system-ui';
-      context.fillText('Linkerduimstick • Verplaatsen', canvas.width / 2, 113, canvas.width - 42);
-      context.fillText('Rechterduimstick ←→ • Draaien', canvas.width / 2, 163, canvas.width - 42);
-      context.fillText('A/B • Andere baan', canvas.width / 2, 213, canvas.width - 42);
-      context.fillText('Trigger speelhand • Baan toevoegen   |   X vasthouden • Startscherm', canvas.width / 2, 263, canvas.width - 42);
-      const start = queue.length ? `${count} · Klik rechterduimstick om te spelen` : 'Voeg een baan toe om te starten';
-      context.fillText(start, canvas.width / 2, 315, canvas.width - 42);
+      drawRoomPanel(context, canvas.width, canvas.height);
+      drawRoomHeading(context, title, `Baan ${selected + 1} van ${roomCourses.length}`, count);
+      drawRoomAction(context, 'Baan toevoegen', 'Trekker', 153, !queue.length);
+      if (queue.length) drawRoomAction(context, 'Ronde spelen', 'Rechterstick indrukken', 198, true);
+      drawRoomNote(context, 'Linkerstick · Schuiven', 37, 245, 330);
+      drawRoomNote(context, 'Rechterstick ← → · Draaien', 405, 245, 327);
+      drawRoomNote(context, 'A/B · Andere baan', 37, 276, 330);
+      drawRoomNote(context, `Y · Stijl: ${style}`, 405, 276, 327);
+      drawRoomNote(context, 'X vasthouden · Startscherm', 37, 302, 330);
       texture.needsUpdate = true;
     }
     return false;

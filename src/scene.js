@@ -3,6 +3,7 @@ import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { createAudio } from './audio.js';
 import { createBall } from './ball.js';
 import { forestCourse, roomCourse } from './course-layout.js';
+import { createRoomAppearance } from './room-appearance.js';
 import { createRoomButton } from './room-button.js';
 import { createRoomCourse, setupRoomPlacement } from './room-course.js';
 import { setupPutter } from './putter.js';
@@ -18,12 +19,13 @@ export function startScene() {
   const room = mode.has('room');
   const practice = !room && mode.has('practice');
   let layout = room ? roomCourse : forestCourse;
+  const roomAppearance = room ? createRoomAppearance() : null;
   let showRoomCourse;
   const course = room ? new THREE.Group() : scene;
   if (room) {
     scene.add(course);
     scene.background = new THREE.Color(0x142721);
-    showRoomCourse = createRoomCourse(course);
+    showRoomCourse = createRoomCourse(course, roomAppearance.play);
   }
   const world = room ? null : createWorld(scene, practice);
   const audio = createAudio();
@@ -36,7 +38,7 @@ export function startScene() {
   const modeLink = document.getElementById('mode');
   const courseGuide = document.getElementById('course-guide');
   if (room) {
-    courseGuide.textContent = 'Zet je banen klaar met de trekker. Druk de rechterduimstick in om ze op volgorde te spelen.';
+    courseGuide.textContent = 'Kies A/B voor een baan en Y voor de stijl. Voeg banen toe met de trekker en druk de rechterduimstick in om te spelen.';
     document.getElementById('room-mode').remove();
   } else if (practice) {
     courseGuide.textContent = 'Vlakke oefenbaan voor grip en korte putts.';
@@ -70,7 +72,7 @@ export function startScene() {
     layout = next;
     ball.setLayout(next);
     showRoomCourse(index);
-  }) : null;
+  }, roomAppearance) : null;
   const updatePutter = setupPutter(renderer, scene, rig, ball, {
     teleport: teleport?.request,
     getViewerPosition: room ? placement.getViewerPosition : teleport.getViewerPosition,

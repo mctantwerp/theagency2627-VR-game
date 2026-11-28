@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Euler, Group, Quaternion, Raycaster, Scene, Vector2, Vector3 } from 'three';
 import { createBall } from '../src/ball.js';
+import { createRoomAppearance } from '../src/room-appearance.js';
 import { roomCourse, roomCourses } from '../src/course-layout.js';
 import { createRoomCourse, setupRoomPlacement } from '../src/room-course.js';
 import { setupHomeShortcut } from '../src/xr-controls.js';
@@ -15,7 +16,9 @@ function poseAt(x, y, z, pitch, yaw = 0) {
 
 test('the room preview stages two courses and plays them at their saved poses in order', (t) => {
   const previousDocument = globalThis.document;
-  globalThis.document = { createElement: () => ({ getContext: () => ({ fillRect() {}, fillText() {} }) }) };
+  globalThis.document = { createElement: () => ({ getContext: () => ({
+    clearRect() {}, fillRect() {}, fillText() {}, beginPath() {}, roundRect() {}, fill() {},
+  }) }) };
   t.after(() => {
     if (previousDocument === undefined) delete globalThis.document;
     else globalThis.document = previousDocument;
@@ -26,11 +29,14 @@ test('the room preview stages two courses and plays them at their saved poses in
   const rig = new Group();
   scene.add(course, rig);
   const selected = [];
-  const showRoomCourse = createRoomCourse(course);
+  const appearance = createRoomAppearance();
+  const initialStyle = appearance.name();
+  const initialColor = appearance.play.body.color.getHex();
+  const showRoomCourse = createRoomCourse(course, appearance.play);
   const placement = setupRoomPlacement(scene, course, rig, (_, index) => {
     showRoomCourse(index);
     selected.push(index);
-  });
+  }, appearance);
   placement.reset(true);
   const xr = { isPresenting: true, getReferenceSpace: () => ({}) };
   let pose = poseAt(1, 1.65, 2, 0);
@@ -50,6 +56,15 @@ test('the room preview stages two courses and plays them at their saved poses in
   assert.equal(course.visible, false);
   const preview = scene.children[2];
   assert.ok(preview.visible);
+  left.buttons[5] = { pressed: true };
+  placement.update(xr, frame);
+  assert.notEqual(appearance.name(), initialStyle);
+  assert.notEqual(appearance.play.body.color.getHex(), initialColor);
+  assert.equal(appearance.play.body.color.getHex(), appearance.preview.body.color.getHex());
+  const selectedStyle = appearance.name();
+  placement.update(xr, frame);
+  assert.equal(appearance.name(), selectedStyle);
+  left.buttons[5].pressed = false;
   assert.ok(preview.position.distanceTo(new Vector3(1, 0, 1.1)) < 1e-8);
   pose = poseAt(1, 1.65, 2, 0, Math.PI / 2);
   placement.update(xr, frame, 0.05);
