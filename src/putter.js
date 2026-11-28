@@ -196,9 +196,9 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
   }
 
   function previewCalibration() {
-    const cup = controls.getCup?.() ?? forestCup;
+    const target = controls.getAimTarget?.() ?? forestCup;
     const { x, z } = ball.mesh.position;
-    addressForward.set(cup.x - x, 0, cup.z - z);
+    addressForward.set(target.x - x, 0, target.z - z);
     if (addressForward.lengthSq() < 0.01) addressForward.copy(front);
     addressForward.normalize();
     address.set(x, bladeHeight / 2 + 0.003, z)

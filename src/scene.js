@@ -36,7 +36,7 @@ export function startScene() {
   const modeLink = document.getElementById('mode');
   const courseGuide = document.getElementById('course-guide');
   if (room) {
-    courseGuide.textContent = 'Kies een baan met de duimstick of A/B. Kijk naar vrije vloer en plaats met de trigger van je speelhand.';
+    courseGuide.textContent = 'Schuif de baan met de linkerduimstick, draai met rechts omhoog/omlaag en kies met A/B. Plaats met de trigger van je speelhand.';
     document.getElementById('room-mode').remove();
   } else if (practice) {
     courseGuide.textContent = 'Vlakke oefenbaan voor grip en korte putts.';
@@ -78,7 +78,11 @@ export function startScene() {
     requestPlacement: placement?.request,
     canPutt: placement?.canPutt,
     strikeEnabled: placement?.canStrike,
-    getCup: () => layout.cup,
+    getAimTarget: () => {
+      const loop = layout.loop;
+      if (loop && ball.mesh.position.z >= loop.entryZ) return { x: 0, z: loop.entryZ };
+      return layout.cup;
+    },
     calibrationKey: room ? 'lichtvallei.putter.room.v1' : undefined,
     puttHint: room ? 'Houd de linkertrigger ingedrukt om te slaan.' : undefined,
     reset: (hand, stance) => { resetRequest = { hand, stance }; },
@@ -150,7 +154,7 @@ export function startScene() {
     }
 
     ball.update(delta);
-    const relocated = room ? placement.update(renderer.xr, frame) : teleport.update(renderer.xr, frame);
+    const relocated = room ? placement.update(renderer.xr, frame, delta) : teleport.update(renderer.xr, frame);
     const walking = !room && !resetting && !relocated && walkWithThumbstick(
       frame?.session, rig, teleport.getViewerPosition(), teleport.right, delta, practice,
     );

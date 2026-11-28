@@ -3,7 +3,7 @@ import test from 'node:test';
 import { Euler, Group, Quaternion, Raycaster, Scene, Vector2, Vector3 } from 'three';
 import { createBall } from '../src/ball.js';
 import { roomCourse, roomCourses } from '../src/course-layout.js';
-import { createRoomCourse, getRoomPlacement, setupRoomPlacement } from '../src/room-course.js';
+import { createRoomCourse, setupRoomPlacement } from '../src/room-course.js';
 import { setupHomeShortcut } from '../src/xr-controls.js';
 
 function poseAt(x, y, z, pitch, yaw = 0) {
@@ -13,16 +13,7 @@ function poseAt(x, y, z, pitch, yaw = 0) {
   } };
 }
 
-test('the placement ray hits the real floor only when looking down at a reachable spot', () => {
-  const point = new Vector3();
-  const aim = pose => getRoomPlacement(pose, point, new Quaternion(), new Vector3());
-  assert.equal(aim(poseAt(0, 1.65, 0, 0)), null);
-  assert.equal(aim(poseAt(0, 1.65, 0, -0.22)), null);
-  assert.ok(Math.abs(aim(poseAt(1, 1.65, 2, -Math.PI / 4, Math.PI / 2)) - Math.PI / 2) < 1e-8);
-  assert.ok(point.distanceTo(new Vector3(-0.65, 0, 2)) < 1e-8);
-});
-
-test('the room lane is locked in place after confirmation and clears on reference-space reset', (t) => {
+test('the room preview moves and turns with the sticks, then locks until reference-space reset', (t) => {
   const previousDocument = globalThis.document;
   globalThis.document = { createElement: () => ({ getContext: () => ({ fillRect() {}, fillText() {} }) }) };
   t.after(() => {
@@ -45,18 +36,38 @@ test('the room lane is locked in place after confirmation and clears on referenc
   let pose = poseAt(1, 1.65, 2, 0);
   const stick = { mapping: 'xr-standard', axes: [0, 0, 0, 0], buttons: [] };
   const leftTrigger = { pressed: true };
+  const left = { mapping: 'xr-standard', axes: [0, 0, 0, 0], buttons: [leftTrigger] };
   const frame = { session: {
     visibilityState: 'visible',
     inputSources: [
       { handedness: 'right', gamepad: stick },
-      { handedness: 'left', gamepad: { mapping: 'xr-standard', axes: [], buttons: [leftTrigger] } },
+      { handedness: 'left', gamepad: left },
     ],
   }, getViewerPose: () => pose };
 
   assert.ok(placement.request());
   assert.equal(placement.update(xr, frame), false);
   assert.equal(course.visible, false);
-  pose = poseAt(1, 1.65, 2, -Math.PI / 4, Math.PI / 2);
+  const preview = scene.children[2];
+  assert.ok(preview.visible);
+  assert.ok(preview.position.distanceTo(new Vector3(1, 0, 1.1)) < 1e-8);
+  pose = poseAt(1, 1.65, 2, 0, Math.PI / 2);
+  placement.update(xr, frame, 0.05);
+  assert.ok(preview.position.distanceTo(new Vector3(1, 0, 1.1)) < 1e-8);
+  assert.equal(preview.rotation.y, 0);
+  left.axes[3] = -1;
+  stick.axes[3] = 1;
+  placement.update(xr, frame, 0.05);
+  const anchor = new Vector3(0.95, 0, 1.1);
+  assert.ok(preview.position.distanceTo(anchor) < 1e-8);
+  assert.ok(Math.abs(preview.rotation.y + 0.08) < 1e-8);
+  assert.deepEqual(selected, [1]);
+  left.axes[3] = 0;
+  stick.axes[3] = 0;
+  left.axes[2] = 0.9;
+  placement.update(xr, frame);
+  assert.deepEqual(selected, [1]);
+  left.axes[2] = 0;
   stick.axes[2] = 0.9;
   assert.equal(placement.update(xr, frame), false);
   assert.equal(placement.update(xr, frame), false);
@@ -70,14 +81,19 @@ test('the room lane is locked in place after confirmation and clears on referenc
   stick.buttons[5] = { pressed: true };
   placement.update(xr, frame);
   assert.deepEqual(selected, [1, 2, 1, 2]);
-  for (let step = 0; step < 3; step++) {
+  for (let step = 0; step < 4; step++) {
     stick.buttons[5].pressed = false;
     placement.update(xr, frame);
     stick.buttons[5].pressed = true;
     placement.update(xr, frame);
   }
-  assert.deepEqual(selected, [1, 2, 1, 2, 3, 4, 0]);
+  assert.deepEqual(selected, [1, 2, 1, 2, 3, 4, 5, 0]);
   stick.buttons[5].pressed = false;
+  stick.buttons[4].pressed = true;
+  placement.update(xr, frame);
+  assert.equal(selected.at(-1), 5);
+  stick.buttons[4].pressed = false;
+  placement.update(xr, frame);
   stick.buttons[4].pressed = true;
   placement.update(xr, frame);
   assert.equal(selected.at(-1), 4);
@@ -86,7 +102,8 @@ test('the room lane is locked in place after confirmation and clears on referenc
   assert.ok(placement.update(xr, frame));
   assert.ok(placement.canPutt());
   assert.ok(course.visible);
-  assert.ok(new Vector3(-0.65, 0, 2).applyMatrix4(rig.matrixWorld).length() < 1e-8);
+  assert.ok(anchor.applyMatrix4(rig.matrixWorld).length() < 1e-8);
+  assert.ok(Math.abs(rig.rotation.y - 0.08) < 1e-8);
   course.updateMatrixWorld(true);
   const floorRay = new Raycaster(new Vector3(0.3, 1, -0.4), new Vector3(0, -1, 0));
   assert.equal(floorRay.intersectObject(course, true).length, 0);
@@ -101,7 +118,9 @@ test('the room lane is locked in place after confirmation and clears on referenc
   const firstPosition = placement.getViewerPosition().clone();
   pose = poseAt(0.5, 1.65, 2, -0.4);
   assert.equal(placement.request(), false);
-  assert.equal(placement.update(xr, frame), false);
+  left.axes[3] = 1;
+  stick.axes[3] = -1;
+  assert.equal(placement.update(xr, frame, 0.05), false);
   assert.ok(rig.matrixWorld.equals(anchored));
   assert.equal(selected.length, selectionCount);
   assert.ok(Math.abs(placement.getViewerPosition().distanceTo(firstPosition) - 0.5) < 1e-8);
@@ -214,4 +233,38 @@ test('a glancing shot deflects sideways off a round bumper', () => {
   for (let frame = 0; frame < 35; frame++) ball.update(1 / 90);
   assert.ok(ball.mesh.position.x > 0.35);
   assert.ok(ball.mesh.position.z > -0.65);
+});
+
+test('a weak shot rolls back down the loop and a hard retry can hole out', () => {
+  const course = roomCourses.at(-1);
+  const ball = createBall(new Scene(), undefined, true, course);
+  function play(x, z) {
+    assert.ok(ball.strike(x, z));
+    let peak = 0;
+    for (let frame = 0; frame < 900 && !ball.isAtRest() && !ball.isHoled(); frame++) {
+      ball.update(1 / 90);
+      peak = Math.max(peak, ball.mesh.position.y);
+    }
+    return peak;
+  }
+
+  assert.equal(play(0.8, -3.9), ball.radius);
+  assert.ok(ball.mesh.position.z > course.loop.entryZ);
+  ball.reset();
+  const weakPeak = play(0, -2.6);
+  assert.ok(weakPeak > ball.radius && weakPeak < course.loop.radius * 2 - ball.radius);
+  assert.ok(ball.isAtRest());
+  assert.ok(ball.mesh.position.z > course.loop.entryZ);
+  assert.ok(play(0, -3.65) >= course.loop.radius * 2 - ball.radius - 0.001);
+  assert.ok(ball.isHoled());
+  assert.equal(ball.getStrokes(), 2);
+
+  ball.reset();
+  ball.strike(0, -3.6);
+  for (let frame = 0; frame < 90 && ball.mesh.position.y === ball.radius; frame++) ball.update(1 / 90);
+  assert.ok(ball.mesh.position.y > ball.radius);
+  ball.setLayout(roomCourse);
+  ball.update(1 / 90);
+  assert.ok(ball.isAtRest());
+  assert.equal(ball.mesh.position.z, roomCourse.startZ);
 });

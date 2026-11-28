@@ -60,6 +60,16 @@ export const roomCourses = [
       { x: 0.375, z: -1.36, radius: 0.13, height: 0.11 },
     ],
   },
+  {
+    ...roomCourse,
+    name: 'De Looping',
+    cup: { ...roomCourse.cup, x: 0.36, z: -1.83, radius: 0.15 },
+    loop: { entryZ: -0.89, exitZ: -1.34, exitX: 0.36, radius: 0.315, width: 0.27 },
+    obstacles: [
+      { minX: -0.675, maxX: -0.135, minZ: -1.04, maxZ: -0.87, height: 0.08 },
+      { minX: 0.135, maxX: 0.675, minZ: -1.04, maxZ: -0.87, height: 0.08 },
+    ],
+  },
 ];
 
 export const defaultRoomCourseIndex = 1;

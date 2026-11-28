@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { forestCourse, root, spring } from './course-layout.js';
+import { loopAcceleration, loopLength, loopPoint } from './loop-track.js';
 
 const radius = 0.075;
 const forestBlockers = [{
@@ -9,7 +10,7 @@ const forestBlockers = [{
 }];
 
 export function createBall(scene, feedback = () => {}, practice = false, layout = forestCourse) {
-  let { cup, cupEdge, teeEdge } = layout;
+  let { cup, cupEdge, teeEdge, loop } = layout;
   let sideLimit = layout.width / 2 - radius;
   let obstacles = layout.obstacles ?? (practice ? [] : forestBlockers);
   const start = new THREE.Vector3(0, radius, layout.startZ);
@@ -31,12 +32,15 @@ export function createBall(scene, feedback = () => {}, practice = false, layout 
   const bumperNormal = new THREE.Vector2();
   let verticalSpeed = 0;
   let springUsed = false;
+  let ridingLoop = false;
+  let loopProgress = 0;
+  let loopSpeed = 0;
   let holed = false;
   let dropping = false;
   let strokes = 0;
 
   function isAtRest() {
-    return !holed && !dropping && velocity.lengthSq() === 0 && mesh.position.y === radius;
+    return !holed && !dropping && !ridingLoop && velocity.lengthSq() === 0 && mesh.position.y === radius;
   }
 
   function resetToPreviousPosition() {
@@ -46,6 +50,7 @@ export function createBall(scene, feedback = () => {}, practice = false, layout 
     velocity.set(0, 0);
     verticalSpeed = 0;
     springUsed = false;
+    ridingLoop = false;
     holed = false;
     dropping = false;
   }
@@ -57,7 +62,7 @@ export function createBall(scene, feedback = () => {}, practice = false, layout 
   }
 
   function setLayout(next) {
-    ({ cup, cupEdge, teeEdge } = next);
+    ({ cup, cupEdge, teeEdge, loop } = next);
     sideLimit = next.width / 2 - radius;
     obstacles = next.obstacles ?? (practice ? [] : forestBlockers);
     start.z = next.startZ;
@@ -76,6 +81,19 @@ export function createBall(scene, feedback = () => {}, practice = false, layout 
 
   function advance(dt) {
     const { position } = mesh;
+    if (ridingLoop) {
+      loopSpeed += loopAcceleration(loopProgress, loopSpeed) * dt;
+      loopProgress += loopSpeed * dt / loopLength(loop, radius);
+      const progress = THREE.MathUtils.clamp(loopProgress, 0, 1);
+      loopPoint(loop, progress, radius, position);
+      mesh.rotateOnWorldAxis(rollAxis.set(-1, 0, 0), loopSpeed * dt / radius);
+      if (progress === 0 || progress === 1) {
+        ridingLoop = false;
+        position.y = radius;
+        velocity.set(0, -0.85 * loopSpeed);
+      }
+      return;
+    }
     if (dropping) {
       verticalSpeed -= 9.8 * dt;
       position.y = Math.max(radius - cup.depth, position.y + verticalSpeed * dt);
@@ -131,6 +149,18 @@ export function createBall(scene, feedback = () => {}, practice = false, layout 
       } else {
         position.x = oldX < left ? left : right;
         velocity.x *= -0.65;
+      }
+    }
+
+    if (loop && position.y === radius && oldZ >= loop.entryZ && position.z < loop.entryZ) {
+      const fraction = (oldZ - loop.entryZ) / (oldZ - position.z);
+      const entryX = THREE.MathUtils.lerp(oldX, position.x, fraction);
+      if (Math.abs(entryX) <= loop.width / 2 - radius + 1e-8) {
+        ridingLoop = true;
+        loopProgress = 0;
+        loopSpeed = (oldZ - position.z) / dt;
+        loopPoint(loop, 0, radius, position);
+        return;
       }
     }
 
