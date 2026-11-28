@@ -1,6 +1,6 @@
 # De Lichtvallei
 
-Een WebXR-minigolfspel voor Meta Quest 3 met één speelbare hole en een vlakke oefenbaan.
+Een WebXR-minigolfspel voor Meta Quest 3 met een bosbaan, een oefenbaan en vijf kamerbanen in passthrough.
 
 ## Lokaal starten
 
@@ -52,6 +52,6 @@ De melodie en geluidseffecten worden door het project zelf via Web Audio opgebou
 
 ## Kamerbaan met passthrough
 
-Kies **Kamerbaan met passthrough** in de Quest-browser en start de kamerbaan. Kies tussen **Rechte putt**, **Smalle poort** en **Slalom** met de duimstick naar links of rechts, of met A en B op je rechtercontroller. Kijk naar een lege plek op de vloer. In het kader van 1,35 bij 2,35 meter zie je de obstakels en de cup van de gekozen baan. Druk op de trigger van je speelhand om de baan te plaatsen. Je eigen vloer blijft zichtbaar tussen de randen.
+Kies **Kamerbaan met passthrough** in de Quest-browser en start de kamerbaan. Blader met de duimstick of met A en B door **Rechte putt**, **Smalle poort**, **Slalom**, **Dubbele poort** en **Flipperkast**. Bij Dubbele poort speel je door twee verspringende openingen. Op Flipperkast kaatst de bal af op ronde bumpers. Kijk naar een lege plek op de vloer. In het kader van 1,35 bij 2,35 meter zie je de gekozen baan. Druk op de trigger van je speelhand om de baan te plaatsen.
 
 Loop fysiek binnen de ingestelde speelruimte naar de virtuele bal. Houd grip vast bij de bal en laat los om de putter af te stellen. Houd tijdens je slag de **linkertrigger** ingedrukt. De putterkop wordt goud zodra je kunt slaan. Druk na het uitholen op de **rechtertrigger** om opnieuw te spelen op dezelfde plek. Houd **X** vast om terug te gaan naar het startscherm, waar je opnieuw een baan kunt kiezen.

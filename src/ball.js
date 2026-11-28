@@ -28,6 +28,7 @@ export function createBall(scene, feedback = () => {}, practice = false, layout 
   const velocity = new THREE.Vector2();
   const previousPosition = start.clone();
   const rollAxis = new THREE.Vector3();
+  const bumperNormal = new THREE.Vector2();
   let verticalSpeed = 0;
   let springUsed = false;
   let holed = false;
@@ -103,11 +104,25 @@ export function createBall(scene, feedback = () => {}, practice = false, layout 
       velocity.y *= -0.7;
     }
     for (const obstacle of obstacles) {
+      if (position.y >= obstacle.height + radius) continue;
+      if (obstacle.radius) {
+        bumperNormal.set(position.x - obstacle.x, position.z - obstacle.z);
+        const contactRadius = obstacle.radius + radius;
+        if (bumperNormal.lengthSq() >= contactRadius ** 2) continue;
+
+        if (bumperNormal.lengthSq() === 0) bumperNormal.copy(velocity).negate();
+        bumperNormal.normalize();
+        position.x = obstacle.x + bumperNormal.x * contactRadius;
+        position.z = obstacle.z + bumperNormal.y * contactRadius;
+        const approach = velocity.dot(bumperNormal);
+        if (approach < 0) velocity.addScaledVector(bumperNormal, -1.65 * approach);
+        continue;
+      }
       const left = obstacle.minX - radius;
       const right = obstacle.maxX + radius;
       const back = obstacle.minZ - radius;
       const front = obstacle.maxZ + radius;
-      if (position.y >= obstacle.height + radius || position.x <= left || position.x >= right ||
+      if (position.x <= left || position.x >= right ||
           position.z <= back || position.z >= front) continue;
 
       if (oldZ >= front || oldZ <= back) {

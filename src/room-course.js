@@ -21,11 +21,20 @@ function addRoomFeatures(parent, layout, preview = false) {
   const obstacleMaterial = preview
     ? new THREE.MeshBasicMaterial({ color: 0xeaba72, transparent: true, opacity: 0.72, depthWrite: false })
     : new THREE.MeshStandardMaterial({ color: 0xb47741, roughness: 0.8 });
+  const bumperMaterial = preview
+    ? obstacleMaterial
+    : new THREE.MeshStandardMaterial({ color: 0x40897e, roughness: 0.7 });
   for (const obstacle of layout.obstacles) {
-    const { minX, maxX, minZ, maxZ, height } = obstacle;
-    const bumper = new THREE.Mesh(new THREE.BoxGeometry(maxX - minX, height, maxZ - minZ), obstacleMaterial);
-    bumper.position.set((minX + maxX) / 2, height / 2, (minZ + maxZ) / 2);
-    parent.add(bumper);
+    const { x, z, radius, minX, maxX, minZ, maxZ, height } = obstacle;
+    if (radius) {
+      const bumper = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, height, 32), bumperMaterial);
+      bumper.position.set(x, height / 2, z);
+      parent.add(bumper);
+    } else {
+      const block = new THREE.Mesh(new THREE.BoxGeometry(maxX - minX, height, maxZ - minZ), obstacleMaterial);
+      block.position.set((minX + maxX) / 2, height / 2, (minZ + maxZ) / 2);
+      parent.add(block);
+    }
   }
 
   const { x, z, radius } = layout.cup;
@@ -211,7 +220,7 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
     prompt.position.copy(position).addScaledVector(direction, 0.92);
     prompt.position.y += 0.13;
     const instruction = valid ? 'Trigger van je speelhand • Plaatsen' : 'Kijk naar een vrije plek op de vloer';
-    const title = roomCourses[selected].name;
+    const title = `${roomCourses[selected].name} (${selected + 1}/${roomCourses.length})`;
     const text = title + instruction;
     if (promptText !== text) {
       promptText = text;

@@ -189,6 +189,27 @@ test('a putt can start with the face already near the ball', () => {
   assert.equal(ball.getStrokes(), 1);
 });
 
+test('a fast sweep catches a near-height miss but still needs horizontal aim', () => {
+  const { ball, head, grip, update } = setupController();
+  const address = grip.position.clone();
+  const dt = 1 / 30;
+  function sweep(side, height) {
+    grip.position.copy(address).add(new THREE.Vector3(side, height, 0.01));
+    update(dt, true);
+    assert.ok(head.getWorldPosition(new THREE.Vector3()).z > ball.mesh.position.z);
+    grip.position.z -= 0.205;
+    update(dt);
+    assert.ok(head.getWorldPosition(new THREE.Vector3()).z < ball.mesh.position.z);
+  }
+
+  sweep(0.26, 0.172);
+  assert.equal(ball.getStrokes(), 0);
+  sweep(0, 0.23);
+  assert.equal(ball.getStrokes(), 0);
+  sweep(0, 0.172);
+  assert.equal(ball.getStrokes(), 1);
+});
+
 test('a gated putter only strikes when enabled before contact', () => {
   let enabled = false;
   const { ball, head, grip, update } = setupController(undefined, undefined, { strikeEnabled: () => enabled });
@@ -420,8 +441,8 @@ test('calibration fits a natural extended grip without steepening the shaft', ()
   assert.equal(ball.getStrokes(), 0);
 });
 
-test('a blade that dips below the green cannot knock the ball from underneath', () => {
-  const { ball, grip, update } = setupController();
+test('a small dip is lifted to floor level but a blade below the floor cannot strike', () => {
+  const { ball, head, grip, update } = setupController();
   const address = grip.position.clone();
 
   function swingAt(height) {
@@ -434,11 +455,13 @@ test('a blade that dips below the green cannot knock the ball from underneath', 
     }
   }
 
-  swingAt(address.y - 0.055);
+  swingAt(address.y - 0.12);
+  assert.ok(head.getWorldPosition(new THREE.Vector3()).y < 0);
   assert.equal(ball.getStrokes(), 0);
   assert.ok(ball.isAtRest());
 
-  swingAt(address.y);
+  swingAt(address.y - 0.055);
+  assert.ok(Math.abs(head.getWorldPosition(new THREE.Vector3()).y - 0.022) < 1e-6);
   assert.equal(ball.getStrokes(), 1);
 });
 

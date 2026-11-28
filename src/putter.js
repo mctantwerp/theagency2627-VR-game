@@ -4,9 +4,12 @@ import { cup as forestCup } from './course-layout.js';
 const bladeWidth = 0.16;
 const bladeHeight = 0.044;
 const bladeDepth = 0.038;
+const bladeRadius = bladeDepth / 2;
+const faceHalfWidth = bladeWidth / 2 - bladeRadius;
 const gripLength = 0.21;
 const gripAboveHand = 0.05;
-const floorAssist = 0.045;
+const floorAssist = 0.075;
+const aboveBallAssist = 0.04;
 const turfTolerance = 0.001;
 const maxFaceTilt = Math.sin(THREE.MathUtils.degToRad(35));
 const minClubLength = 0.45;
@@ -32,10 +35,8 @@ function createPutter() {
   const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.009, 1, 12), metal);
   const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, gripLength, 12), rubber);
   const profile = new THREE.Shape();
-  const radius = bladeDepth / 2;
-  const halfStraight = bladeWidth / 2 - radius;
-  profile.absarc(halfStraight, 0, radius, -Math.PI / 2, Math.PI / 2, false);
-  profile.absarc(-halfStraight, 0, radius, Math.PI / 2, 3 * Math.PI / 2, false);
+  profile.absarc(faceHalfWidth, 0, bladeRadius, -Math.PI / 2, Math.PI / 2, false);
+  profile.absarc(-faceHalfWidth, 0, bladeRadius, Math.PI / 2, 3 * Math.PI / 2, false);
   profile.closePath();
   const geometry = new THREE.ExtrudeGeometry(profile, { depth: bladeHeight, bevelEnabled: false, curveSegments: 12 });
   geometry.translate(0, 0, -bladeHeight / 2);
@@ -65,10 +66,10 @@ function readProfiles(calibrationKey) {
   }
 }
 
-function faceDistanceSquared(point, side) {
-  const dx = Math.max(0, Math.abs(point.x) - (bladeWidth - bladeDepth) / 2);
-  const dy = Math.max(0, Math.abs(point.y) - bladeHeight / 2);
-  const dz = point.z - side * bladeDepth / 2;
+function faceDistanceSquared(point, side, heightAssist) {
+  const dx = Math.max(0, Math.abs(point.x) - faceHalfWidth);
+  const dy = Math.max(0, point.y - bladeHeight / 2, -point.y - bladeHeight / 2 - heightAssist);
+  const dz = point.z - side * bladeRadius;
   return dx * dx + dy * dy + dz * dz;
 }
 
@@ -259,6 +260,7 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
       averagedVelocity.set(0, 0, 0);
       return;
     }
+    const verticalSpeed = Math.abs(velocity.y);
     velocity.y = 0;
     averagedVelocity.lerp(velocity, 1 - Math.exp(-delta / 0.035));
     if (!ball.isAtRest()) return;
@@ -268,9 +270,10 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
     inverse.copy(rotation).invert();
     currentBall.subVectors(ball.mesh.position, position).applyQuaternion(inverse);
     const side = previousBall.z > 0 ? 1 : -1;
+    const gap = side * previousBall.z - bladeRadius;
+    const closing = side * (previousBall.z - currentBall.z);
     const radiusSquared = ball.radius * ball.radius;
-    if (side * previousBall.z < bladeDepth / 2 ||
-        side * (previousBall.z - currentBall.z) <= 0) return;
+    if (gap < 0 || closing <= 0 || gap - closing > ball.radius) return;
 
     normal.copy(front).multiplyScalar(-side).applyQuaternion(rotation);
     if (Math.abs(normal.y) > maxFaceTilt) return;
@@ -279,10 +282,14 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
     const approachSpeed = velocity.dot(normal);
     if (approachSpeed < 0.022) return;
 
-    const steps = Math.max(1, Math.ceil(previousBall.distanceTo(currentBall) / (ball.radius * 0.16)));
-    for (let index = 1; index <= steps; index++) {
-      point.lerpVectors(previousBall, currentBall, index / steps);
-      if (side * point.z < bladeDepth / 2 || faceDistanceSquared(point, side) > radiusSquared) continue;
+    // Search only the part of the sweep within one ball radius in front of the face.
+    const start = Math.max(0, (gap - ball.radius) / closing);
+    const end = Math.min(1, gap / closing);
+    const steps = Math.max(1, Math.ceil((end - start) * previousBall.distanceTo(currentBall) / (ball.radius * 0.16)));
+    const heightAssist = approachSpeed >= verticalSpeed ? aboveBallAssist : 0;
+    for (let index = 0; index <= steps; index++) {
+      point.lerpVectors(previousBall, currentBall, THREE.MathUtils.lerp(start, end, index / steps));
+      if (faceDistanceSquared(point, side, heightAssist) > radiusSquared) continue;
 
       direction.copy(averagedVelocity);
       direction.y = 0;
@@ -300,8 +307,8 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
   function bladeClearance(rotation) {
     inverse.copy(rotation).invert();
     bladeUp.copy(up).applyQuaternion(inverse);
-    return (Math.abs(bladeUp.x) * bladeWidth + Math.abs(bladeUp.y) * bladeHeight +
-      Math.abs(bladeUp.z) * bladeDepth) / 2;
+    return Math.abs(bladeUp.x) * faceHalfWidth + Math.abs(bladeUp.y) * bladeHeight / 2 +
+      Math.hypot(bladeUp.x, bladeUp.z) * bladeRadius;
   }
 
   return function updatePutter(delta, trackingJump = false) {

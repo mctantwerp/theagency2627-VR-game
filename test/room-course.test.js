@@ -70,6 +70,18 @@ test('the room lane is locked in place after confirmation and clears on referenc
   stick.buttons[5] = { pressed: true };
   placement.update(xr, frame);
   assert.deepEqual(selected, [1, 2, 1, 2]);
+  for (let step = 0; step < 3; step++) {
+    stick.buttons[5].pressed = false;
+    placement.update(xr, frame);
+    stick.buttons[5].pressed = true;
+    placement.update(xr, frame);
+  }
+  assert.deepEqual(selected, [1, 2, 1, 2, 3, 4, 0]);
+  stick.buttons[5].pressed = false;
+  stick.buttons[4].pressed = true;
+  placement.update(xr, frame);
+  assert.equal(selected.at(-1), 4);
+  const selectionCount = selected.length;
   assert.ok(placement.request());
   assert.ok(placement.update(xr, frame));
   assert.ok(placement.canPutt());
@@ -80,6 +92,10 @@ test('the room lane is locked in place after confirmation and clears on referenc
   assert.equal(floorRay.intersectObject(course, true).length, 0);
   floorRay.ray.origin.x = roomCourse.width / 2 + 0.018;
   assert.ok(floorRay.intersectObject(course, true).length > 0);
+  const bumper = roomCourses[4].obstacles[0];
+  floorRay.ray.origin.set(bumper.x, 1, bumper.z);
+  assert.ok(floorRay.intersectObject(course, true).some(({ object, point }) =>
+    object.parent.visible && Math.abs(point.y - bumper.height) < 1e-8));
 
   const anchored = rig.matrixWorld.clone();
   const firstPosition = placement.getViewerPosition().clone();
@@ -87,7 +103,7 @@ test('the room lane is locked in place after confirmation and clears on referenc
   assert.equal(placement.request(), false);
   assert.equal(placement.update(xr, frame), false);
   assert.ok(rig.matrixWorld.equals(anchored));
-  assert.deepEqual(selected, [1, 2, 1, 2]);
+  assert.equal(selected.length, selectionCount);
   assert.ok(Math.abs(placement.getViewerPosition().distanceTo(firstPosition) - 0.5) < 1e-8);
   assert.equal(placement.canStrike(), false);
   leftTrigger.pressed = false;
@@ -161,7 +177,7 @@ test('the room ball uses the smaller lane and its offset cup', () => {
   }
 });
 
-test('the slalom blocks a direct putt and both obstacle layouts can be finished', () => {
+test('the slalom blocks a direct putt and every obstacle layout can be finished', () => {
   const ball = createBall(new Scene(), undefined, true, roomCourses[2]);
   assert.ok(ball.strike(0, -1.6));
   let reached = ball.mesh.position.z;
@@ -174,6 +190,8 @@ test('the slalom blocks a direct putt and both obstacle layouts can be finished'
   const routes = [
     [[0, -1.30], [0.17, -1.78]],
     [[0.34, -0.55], [0.34, -0.99], [-0.34, -0.99], [-0.34, -1.78]],
+    [[-0.355, -0.54], [-0.355, -1.035], [0.335, -1.035], [0.335, -1.58], [0.32, -1.83]],
+    [[0.39, -0.51], [0.39, -1.065], [0.05, -1.23], [0.02, -1.58], [-0.14, -1.83]],
   ];
   for (const [index, route] of routes.entries()) {
     ball.setLayout(roomCourses[index + 1]);
@@ -184,7 +202,16 @@ test('the slalom blocks a direct putt and both obstacle layouts can be finished'
       assert.ok(ball.strike(velocity.x, velocity.y));
       for (let frame = 0; frame < 400 && !ball.isAtRest() && !ball.isHoled(); frame++) ball.update(1 / 90);
     }
-    assert.ok(ball.isHoled());
+    assert.ok(ball.isHoled(), roomCourses[index + 1].name);
     assert.equal(ball.getStrokes(), route.length);
   }
+});
+
+test('a glancing shot deflects sideways off a round bumper', () => {
+  const ball = createBall(new Scene(), undefined, true, roomCourses[4]);
+  ball.mesh.position.x = 0.19;
+  assert.ok(ball.strike(0, -1.6));
+  for (let frame = 0; frame < 35; frame++) ball.update(1 / 90);
+  assert.ok(ball.mesh.position.x > 0.35);
+  assert.ok(ball.mesh.position.z > -0.65);
 });

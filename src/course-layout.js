@@ -39,6 +39,27 @@ export const roomCourses = [
       { minX: -0.11, maxX: 0.675, minZ: -1.33, maxZ: -1.20, height: 0.10 },
     ],
   },
+  {
+    ...roomCourse,
+    name: 'Dubbele poort',
+    cup: { ...roomCourse.cup, x: 0.32, z: -1.83, radius: 0.14 },
+    obstacles: [
+      { minX: -0.675, maxX: -0.49, minZ: -0.80, maxZ: -0.70, height: 0.11 },
+      { minX: -0.22, maxX: 0.675, minZ: -0.80, maxZ: -0.70, height: 0.11 },
+      { minX: -0.675, maxX: 0.20, minZ: -1.40, maxZ: -1.30, height: 0.11 },
+      { minX: 0.47, maxX: 0.675, minZ: -1.40, maxZ: -1.30, height: 0.11 },
+    ],
+  },
+  {
+    ...roomCourse,
+    name: 'Flipperkast',
+    cup: { ...roomCourse.cup, x: -0.14, z: -1.83, radius: 0.14 },
+    obstacles: [
+      { x: 0.02, z: -0.83, radius: 0.22, height: 0.14 },
+      { x: -0.34, z: -1.34, radius: 0.16, height: 0.12 },
+      { x: 0.375, z: -1.36, radius: 0.13, height: 0.11 },
+    ],
+  },
 ];
 
 export const defaultRoomCourseIndex = 1;
