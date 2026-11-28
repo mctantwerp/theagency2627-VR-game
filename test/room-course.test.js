@@ -51,7 +51,7 @@ test('the room preview stages two courses and plays them at their saved poses in
     ],
   }, getViewerPose: () => pose };
 
-  assert.ok(placement.request());
+  assert.ok(placement.isPlacing());
   assert.equal(placement.update(xr, frame), false);
   assert.equal(course.visible, false);
   const preview = scene.children[2];
@@ -125,10 +125,12 @@ test('the room preview stages two courses and plays them at their saved poses in
   stick.buttons[4].pressed = true;
   placement.update(xr, frame);
   assert.equal(selected.at(-1), 4);
-  assert.ok(placement.request());
+  left.buttons[3] = { pressed: true };
+  assert.equal(placement.update(xr, frame), false);
   assert.equal(placement.update(xr, frame), false);
   assert.equal(placement.canPutt(), false);
   assert.equal(scene.children[4].children.length, 1);
+  left.buttons[3].pressed = false;
   stick.buttons[4].pressed = false;
   stick.buttons[5].pressed = true;
   left.axes[3] = -1;
@@ -138,7 +140,7 @@ test('the room preview stages two courses and plays them at their saved poses in
   const secondYaw = preview.rotation.y;
   assert.ok(secondAnchor.distanceTo(anchor) > 0.04);
   assert.equal(selected.at(-1), 5);
-  assert.ok(placement.request());
+  left.buttons[3].pressed = true;
   assert.equal(placement.update(xr, frame), false);
   assert.equal(scene.children[4].children.length, 2);
   stick.buttons[3] = { pressed: true };
@@ -165,7 +167,7 @@ test('the room preview stages two courses and plays them at their saved poses in
   const anchored = rig.matrixWorld.clone();
   const firstPosition = placement.getViewerPosition().clone();
   pose = poseAt(0.5, 1.65, 2, -0.4);
-  assert.equal(placement.request(), false);
+  assert.equal(placement.isPlacing(), false);
   left.axes[3] = 1;
   stick.axes[2] = -1;
   assert.equal(placement.update(xr, frame, 0.05), false);

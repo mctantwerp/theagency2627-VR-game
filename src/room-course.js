@@ -173,8 +173,8 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}, appe
   let bHeld = false;
   let activeIndex = -1;
   let stickHeld = false;
+  let addHeld = false;
   let yHeld = false;
-  let requested = false;
   let advanceRequested = false;
   let viewerTracked = false;
   let triggerReleased = false;
@@ -201,20 +201,14 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}, appe
     activeIndex = -1;
     queue.length = 0;
     savedOutlines.clear();
-    requested = advanceRequested = viewerTracked = hasPreview = false;
+    advanceRequested = viewerTracked = hasPreview = false;
     triggerReleased = striking = false;
-    aHeld = bHeld = stickHeld = yHeld = false;
+    aHeld = bHeld = stickHeld = addHeld = yHeld = false;
     guide.visible = prompt.visible = false;
     course.visible = !immersive;
     rig.position.set(0, 0, 0);
     rig.rotation.set(0, 0, 0);
     rig.updateMatrixWorld(true);
-  }
-
-  function request() {
-    if (activeIndex >= 0) return false;
-    requested = hasPreview && viewerTracked;
-    return true;
   }
 
   function savePreview() {
@@ -244,13 +238,16 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}, appe
     const pose = space && frame?.session?.visibilityState === 'visible' && frame.getViewerPose(space);
     viewerTracked = Boolean(pose);
     if (!pose) {
-      guide.visible = prompt.visible = savedOutlines.visible = requested = advanceRequested = false;
+      guide.visible = prompt.visible = savedOutlines.visible = advanceRequested = false;
       triggerReleased = striking = false;
       return false;
     }
     const { position, orientation: view } = pose.transform;
     const left = controllerGamepad(frame.session.inputSources, 'left');
     const right = controllerGamepad(frame.session.inputSources, 'right');
+    const addPressed = left?.buttons[3]?.pressed ?? false;
+    const addClicked = addPressed && !addHeld;
+    addHeld = addPressed;
     const yPressed = left?.buttons[5]?.pressed ?? false;
     const styleRequested = yPressed && !yHeld;
     yHeld = yPressed;
@@ -267,6 +264,7 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}, appe
       if (advanceRequested || stickClicked) {
         reset(true);
         stickHeld = stickPressed;
+        addHeld = addPressed;
         return true;
       }
       const trigger = left?.buttons[0];
@@ -274,10 +272,7 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}, appe
       triggerReleased = Boolean(trigger) && (triggerReleased || !trigger.pressed);
       return false;
     }
-    if (requested) {
-      requested = false;
-      savePreview();
-    }
+    if (addClicked && hasPreview) savePreview();
     if (stickClicked && queue.length > 0) {
       activate(0, position);
       return true;
@@ -318,9 +313,9 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}, appe
       drawRoomHeading(context, title, 'A/B · Baan kiezen', count);
       if (queue.length) {
         drawRoomAction(context, 'Ronde spelen', 'Rechterstick indrukken', 142, true);
-        drawRoomAction(context, 'Baan toevoegen', 'Trekker', 190);
+        drawRoomAction(context, 'Baan toevoegen', 'Linkerstick indrukken', 190);
       } else {
-        drawRoomAction(context, 'Baan toevoegen', 'Trekker', 142, true);
+        drawRoomAction(context, 'Baan toevoegen', 'Linkerstick indrukken', 142, true);
       }
       const controlsY = queue.length ? 233 : 195;
       drawRoomNote(context, 'Linkerstick · Schuiven', 32, controlsY, 332);
@@ -335,7 +330,8 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}, appe
   select(selected);
   reset();
   return {
-    reset, request, update,
+    reset, update,
+    isPlacing: () => activeIndex < 0,
     next: () => { advanceRequested = activeIndex >= 0 && viewerTracked; },
     getRound: () => activeIndex >= 0 ? { current: activeIndex + 1, total: queue.length } : null,
     canPutt: () => activeIndex >= 0 && viewerTracked,

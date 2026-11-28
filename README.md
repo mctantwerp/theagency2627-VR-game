@@ -52,7 +52,7 @@ De melodie en geluidseffecten worden door het project zelf via Web Audio opgebou
 
 ## Kamerbaan met passthrough
 
-Kies **Kamerbaan met passthrough** in de Quest-browser. Schuif de voorbeeldbaan met de linkerduimstick, draai met de rechterduimstick en kies een baan met A/B. Met **Y** kies je een afwerking voor je kamer: **Lichte eik**, **Grafiet** of **Donker hout**. Druk op de trigger van je speelhand om een baan aan de ronde toe te voegen. Voeg op dezelfde manier extra banen toe. Ze mogen dezelfde plek gebruiken. Druk de rechterduimstick in om bij de eerste baan te starten.
+Kies **Kamerbaan met passthrough** in de Quest-browser. Schuif de voorbeeldbaan met de linkerduimstick, draai met de rechterduimstick en kies een baan met A/B. Met **Y** kies je een afwerking voor je kamer: **Lichte eik**, **Grafiet** of **Donker hout**. Druk de **linkerduimstick** in om een baan toe te voegen en de **rechterduimstick** in om de ronde te beginnen. Banen mogen dezelfde plek gebruiken. Tijdens het plaatsen kies je met de trigger de hand waarmee je wilt putten.
 
 Bij **Dubbele poort** speel je door twee verspringende openingen. Op **Flipperkast** kaatst de bal af op ronde bumpers. Sla op **De Looping** recht en stevig de baan in. Met te weinig vaart rolt de bal naar je terug.
 

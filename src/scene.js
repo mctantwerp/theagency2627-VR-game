@@ -38,7 +38,7 @@ export function startScene() {
   const modeLink = document.getElementById('mode');
   const courseGuide = document.getElementById('course-guide');
   if (room) {
-    courseGuide.textContent = 'Kies A/B voor een baan en Y voor de stijl. Voeg banen toe met de trekker en druk de rechterduimstick in om te spelen.';
+    courseGuide.textContent = 'Kies een baan met A/B. Druk de linkerduimstick in om ze toe te voegen en druk de rechterduimstick in om te spelen.';
     document.getElementById('room-mode').remove();
   } else if (practice) {
     courseGuide.textContent = 'Vlakke oefenbaan voor grip en korte putts.';
@@ -77,7 +77,7 @@ export function startScene() {
     teleport: teleport?.request,
     getViewerPosition: room ? placement.getViewerPosition : teleport.getViewerPosition,
     alignAddress: teleport?.alignAddress,
-    requestPlacement: placement?.request,
+    isPlacing: placement?.isPlacing,
     canPutt: placement?.canPutt,
     strikeEnabled: placement?.canStrike,
     getAimTarget: () => {

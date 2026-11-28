@@ -178,8 +178,8 @@ export function setupPutter(renderer, scene, rig, ball, controls) {
     });
     target.addEventListener('selectstart', () => {
       if (!controller.connected) return;
-      if (controls.requestPlacement) {
-        if (controls.requestPlacement()) select(controller);
+      if (controls.isPlacing) {
+        if (controls.isPlacing()) select(controller);
         else if (controller.hand === 'right' && controls.canPutt()) {
           if (ball.isHoled()) controls.reset();
           else if (active?.practice) active.calibrating = true;
