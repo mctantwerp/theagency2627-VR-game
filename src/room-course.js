@@ -93,6 +93,9 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
   tee.rotation.x = -Math.PI / 2;
   tee.position.set(0, 0.016, roomCourse.startZ);
   guide.add(outline, tee);
+  const savedOutlines = new THREE.Group();
+  const savedMaterial = new THREE.LineBasicMaterial({ color: 0x81e1bc });
+  const queue = [];
   const previews = roomCourses.map((layout) => {
     const variant = new THREE.Group();
     addRoomFeatures(variant, layout, true);
@@ -102,14 +105,14 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
 
   const canvas = document.createElement('canvas');
   canvas.width = 768;
-  canvas.height = 306;
+  canvas.height = 356;
   const context = canvas.getContext('2d');
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   const prompt = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false }));
-  prompt.scale.set(0.76, 0.303, 1);
+  prompt.scale.set(0.76, 0.352, 1);
   prompt.renderOrder = 1;
-  scene.add(guide, prompt);
+  scene.add(guide, prompt, savedOutlines);
 
   const origin = new THREE.Vector3();
   const orientation = new THREE.Quaternion();
@@ -121,8 +124,10 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
   let selected = defaultRoomCourseIndex;
   let aHeld = false;
   let bHeld = false;
-  let placed = false;
+  let activeIndex = -1;
+  let stickHeld = false;
   let requested = false;
+  let advanceRequested = false;
   let viewerTracked = false;
   let triggerReleased = false;
   let striking = false;
@@ -144,9 +149,12 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
   }
 
   function reset(immersive = false) {
-    placed = requested = viewerTracked = hasPreview = false;
+    activeIndex = -1;
+    queue.length = 0;
+    savedOutlines.clear();
+    requested = advanceRequested = viewerTracked = hasPreview = false;
     triggerReleased = striking = false;
-    aHeld = bHeld = false;
+    aHeld = bHeld = stickHeld = false;
     guide.visible = prompt.visible = false;
     course.visible = !immersive;
     rig.position.set(0, 0, 0);
@@ -155,9 +163,31 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
   }
 
   function request() {
-    if (placed) return false;
+    if (activeIndex >= 0) return false;
     requested = hasPreview && viewerTracked;
     return true;
+  }
+
+  function savePreview() {
+    const marker = new THREE.LineLoop(outline.geometry, savedMaterial);
+    marker.position.copy(origin);
+    marker.position.y += 0.003;
+    marker.rotation.y = yaw;
+    savedOutlines.add(marker);
+    queue.push({ origin: origin.clone(), yaw, index: selected });
+  }
+
+  function activate(index, position) {
+    activeIndex = index;
+    const saved = queue[index];
+    rig.rotation.y = -saved.yaw;
+    rig.position.copy(saved.origin).negate().applyAxisAngle(up, -saved.yaw);
+    rig.updateMatrixWorld(true);
+    viewerPosition.copy(position).applyAxisAngle(up, -saved.yaw).add(rig.position);
+    guide.visible = prompt.visible = savedOutlines.visible = false;
+    course.visible = true;
+    triggerReleased = striking = false;
+    onSelect(roomCourses[saved.index], saved.index);
   }
 
   function update(xr, frame, delta = 0) {
@@ -165,14 +195,28 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
     const pose = space && frame?.session?.visibilityState === 'visible' && frame.getViewerPose(space);
     viewerTracked = Boolean(pose);
     if (!pose) {
-      guide.visible = prompt.visible = requested = false;
+      guide.visible = prompt.visible = savedOutlines.visible = requested = advanceRequested = false;
       triggerReleased = striking = false;
       return false;
     }
     const { position, orientation: view } = pose.transform;
     const left = controllerGamepad(frame.session.inputSources, 'left');
+    const right = controllerGamepad(frame.session.inputSources, 'right');
+    const stickPressed = right?.buttons[3]?.pressed ?? false;
+    const stickClicked = stickPressed && !stickHeld;
+    stickHeld = stickPressed;
     viewerPosition.copy(position).applyAxisAngle(up, rig.rotation.y).add(rig.position);
-    if (placed) {
+    if (activeIndex >= 0) {
+      if (advanceRequested && !stickClicked && activeIndex + 1 < queue.length) {
+        advanceRequested = false;
+        activate(activeIndex + 1, position);
+        return true;
+      }
+      if (advanceRequested || stickClicked) {
+        reset(true);
+        stickHeld = stickPressed;
+        return true;
+      }
       const trigger = left?.buttons[0];
       striking = triggerReleased && trigger?.pressed === true;
       triggerReleased = Boolean(trigger) && (triggerReleased || !trigger.pressed);
@@ -180,12 +224,10 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
     }
     if (requested) {
       requested = false;
-      rig.rotation.y = -yaw;
-      rig.position.copy(origin).negate().applyAxisAngle(up, -yaw);
-      rig.updateMatrixWorld(true);
-      viewerPosition.copy(position).applyAxisAngle(up, -yaw).add(rig.position);
-      guide.visible = prompt.visible = false;
-      course.visible = placed = true;
+      savePreview();
+    }
+    if (stickClicked && queue.length > 0) {
+      activate(0, position);
       return true;
     }
     orientation.set(view.x, view.y, view.z, view.w);
@@ -196,14 +238,13 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
       origin.copy(position).add(direction).setY(0);
       hasPreview = true;
     }
-    const right = controllerGamepad(frame.session.inputSources, 'right');
     cycle(right);
     const dt = Math.min(delta, 0.05);
     direction.set(stickAmount(left?.axes[2] ?? 0), 0, stickAmount(left?.axes[3] ?? 0));
     direction.clampLength(0, 1).applyAxisAngle(up, viewerYaw);
     origin.addScaledVector(direction, dt);
     yaw -= stickAmount(right?.axes[2] ?? 0) * dt * 1.6;
-    guide.visible = true;
+    guide.visible = savedOutlines.visible = true;
     guide.position.copy(origin);
     guide.rotation.y = yaw;
 
@@ -212,8 +253,10 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
     prompt.position.copy(position).addScaledVector(direction, 0.92);
     prompt.position.y += 0.25;
     const title = `${roomCourses[selected].name} (${selected + 1}/${roomCourses.length})`;
-    if (promptText !== title) {
-      promptText = title;
+    const count = queue.length === 1 ? '1 baan klaar' : `${queue.length} banen klaar`;
+    const text = title + count;
+    if (promptText !== text) {
+      promptText = text;
       context.fillStyle = '#18372f';
       context.fillRect(0, 0, canvas.width, canvas.height);
       context.fillStyle = '#fff1ce';
@@ -225,7 +268,9 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
       context.fillText('Linkerduimstick • Verplaatsen', canvas.width / 2, 113, canvas.width - 42);
       context.fillText('Rechterduimstick ←→ • Draaien', canvas.width / 2, 163, canvas.width - 42);
       context.fillText('A/B • Andere baan', canvas.width / 2, 213, canvas.width - 42);
-      context.fillText('Trigger speelhand • Plaatsen    |    Houd X vast • Startscherm', canvas.width / 2, 267, canvas.width - 42);
+      context.fillText('Trigger speelhand • Baan toevoegen   |   X vasthouden • Startscherm', canvas.width / 2, 263, canvas.width - 42);
+      const start = queue.length ? `${count} · Klik rechterduimstick om te spelen` : 'Voeg een baan toe om te starten';
+      context.fillText(start, canvas.width / 2, 315, canvas.width - 42);
       texture.needsUpdate = true;
     }
     return false;
@@ -235,7 +280,9 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
   reset();
   return {
     reset, request, update,
-    canPutt: () => placed && viewerTracked,
+    next: () => { advanceRequested = activeIndex >= 0 && viewerTracked; },
+    getRound: () => activeIndex >= 0 ? { current: activeIndex + 1, total: queue.length } : null,
+    canPutt: () => activeIndex >= 0 && viewerTracked,
     canStrike: () => striking,
     getViewerPosition: () => viewerTracked ? viewerPosition : null,
   };

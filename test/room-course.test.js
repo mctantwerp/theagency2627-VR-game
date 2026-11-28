@@ -13,7 +13,7 @@ function poseAt(x, y, z, pitch, yaw = 0) {
   } };
 }
 
-test('the room preview moves and turns with the sticks, then locks until reference-space reset', (t) => {
+test('the room preview stages two courses and plays them at their saved poses in order', (t) => {
   const previousDocument = globalThis.document;
   globalThis.document = { createElement: () => ({ getContext: () => ({ fillRect() {}, fillText() {} }) }) };
   t.after(() => {
@@ -102,9 +102,29 @@ test('the room preview moves and turns with the sticks, then locks until referen
   stick.buttons[4].pressed = true;
   placement.update(xr, frame);
   assert.equal(selected.at(-1), 4);
-  const selectionCount = selected.length;
   assert.ok(placement.request());
+  assert.equal(placement.update(xr, frame), false);
+  assert.equal(placement.canPutt(), false);
+  assert.equal(scene.children[4].children.length, 1);
+  stick.buttons[4].pressed = false;
+  stick.buttons[5].pressed = true;
+  left.axes[3] = -1;
+  stick.axes[2] = -1;
+  placement.update(xr, frame, 0.05);
+  const secondAnchor = preview.position.clone();
+  const secondYaw = preview.rotation.y;
+  assert.ok(secondAnchor.distanceTo(anchor) > 0.04);
+  assert.equal(selected.at(-1), 5);
+  assert.ok(placement.request());
+  assert.equal(placement.update(xr, frame), false);
+  assert.equal(scene.children[4].children.length, 2);
+  stick.buttons[3] = { pressed: true };
   assert.ok(placement.update(xr, frame));
+  assert.equal(placement.update(xr, frame), false);
+  assert.deepEqual(placement.getRound(), { current: 1, total: 2 });
+  assert.equal(selected.at(-1), 4);
+  const selectionCount = selected.length;
+  stick.buttons[3].pressed = false;
   assert.ok(placement.canPutt());
   assert.ok(course.visible);
   assert.ok(anchor.applyMatrix4(rig.matrixWorld).length() < 1e-8);
@@ -151,6 +171,19 @@ test('the room preview moves and turns with the sticks, then locks until referen
   frame.session.visibilityState = 'visible';
   placement.update(xr, frame);
   assert.equal(placement.canStrike(), false);
+  placement.next();
+  assert.ok(placement.update(xr, frame));
+  assert.deepEqual(placement.getRound(), { current: 2, total: 2 });
+  assert.equal(selected.at(-1), 5);
+  assert.ok(secondAnchor.applyMatrix4(rig.matrixWorld).length() < 1e-8);
+  assert.ok(Math.abs(rig.rotation.y + secondYaw) < 1e-8);
+  assert.equal(placement.canStrike(), false);
+  placement.next();
+  assert.ok(placement.update(xr, frame));
+  assert.equal(placement.getRound(), null);
+  assert.equal(placement.update(xr, frame), false);
+  assert.ok(preview.visible);
+  assert.equal(scene.children[4].children.length, 0);
   placement.reset(true);
   assert.equal(course.visible, false);
   assert.equal(placement.canPutt(), false);

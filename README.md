@@ -52,8 +52,8 @@ De melodie en geluidseffecten worden door het project zelf via Web Audio opgebou
 
 ## Kamerbaan met passthrough
 
-Kies **Kamerbaan met passthrough** in de Quest-browser. Schuif de voorbeeldbaan over de vloer met de linkerduimstick. Duw de rechterduimstick naar links of rechts om de baan rond haar verticale as te draaien. Gebruik A/B om van baan te wisselen. Druk op de trigger van je speelhand om de baan van 1,35 bij 2,35 meter te plaatsen.
+Kies **Kamerbaan met passthrough** in de Quest-browser. Schuif de voorbeeldbaan met de linkerduimstick, draai met de rechterduimstick en kies een baan met A/B. Druk op de trigger van je speelhand om een baan aan de ronde toe te voegen. Voeg op dezelfde manier extra banen toe. Ze mogen dezelfde plek gebruiken. Druk de rechterduimstick in om bij de eerste baan te starten.
 
 Bij **Dubbele poort** speel je door twee verspringende openingen. Op **Flipperkast** kaatst de bal af op ronde bumpers. Sla op **De Looping** recht en stevig de paarse baan in. Met te weinig vaart rolt de bal naar je terug.
 
-Loop fysiek binnen de ingestelde speelruimte naar de virtuele bal. Houd grip vast bij de bal en laat los om de putter af te stellen. Houd tijdens je slag de **linkertrigger** ingedrukt. De putterkop wordt goud zodra je kunt slaan. Druk na het uitholen op de **rechtertrigger** om opnieuw te spelen op dezelfde plek. Houd **X** vast om terug te gaan naar het startscherm, waar je opnieuw een baan kunt kiezen.
+Loop fysiek binnen de ingestelde speelruimte naar de virtuele bal. Houd grip vast bij de bal en laat los om de putter af te stellen. Houd tijdens je slag de **linkertrigger** ingedrukt. De putterkop wordt goud zodra je kunt slaan. Druk na het uitholen op de **rechtertrigger** voor de volgende baan. Na de laatste baan brengt diezelfde knop je terug naar het plaatsen, binnen dezelfde passthrough-sessie. Druk de rechterduimstick in om tussendoor een nieuwe ronde klaar te zetten. Houd **X** vast voor het startscherm.

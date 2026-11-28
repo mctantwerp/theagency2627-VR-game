@@ -24,11 +24,18 @@ export function setupScore(scene, ball, room = false) {
   let hint = 'Houd grip vast om de putter af te stellen.';
   const desktopHint = document.getElementById('putter-guide');
 
-  function update() {
+  function update(round) {
     const strokes = ball.getStrokes();
     const text = strokes === 1 ? '1 slag' : `${strokes} slagen`;
-    const message = ball.isHoled() ? `Uitgespeeld in ${text}` : text;
-    const status = ball.isHoled() ? `${room ? 'Rechtertrigger' : 'Trigger'} • opnieuw spelen` : hint;
+    const result = ball.isHoled() ? `Uitgespeeld in ${text}` : text;
+    const message = round ? `Baan ${round.current}/${round.total} · ${result}` : result;
+    let status = hint;
+    if (ball.isHoled()) {
+      status = 'Trigger • opnieuw spelen';
+      if (round) status = round.current < round.total
+        ? 'Rechtertrigger • Volgende baan'
+        : 'Rechtertrigger • Banen plaatsen';
+    }
     if (message === previousText && status === previousHint) return;
 
     previousText = message;
@@ -43,12 +50,14 @@ export function setupScore(scene, ball, room = false) {
     context.textAlign = 'center';
     context.fillStyle = '#f2e5bd';
     context.font = '600 52px system-ui';
-    context.fillText(message, 384, 101);
+    context.fillText(message, 384, 101, 702);
     context.fillStyle = '#e3e8da';
     context.font = '34px system-ui';
     context.fillText(status, 384, 164, 702);
     context.font = '27px system-ui';
-    context.fillText(room ? 'Houd X vast • Startscherm' : 'Duimstick • Rondlopen   |   Houd X vast • Startscherm', 384, 213);
+    const footer = room ? 'Klik rechterduimstick • Nieuwe ronde   |   Houd X vast • Startscherm'
+      : 'Duimstick • Rondlopen   |   Houd X vast • Startscherm';
+    context.fillText(footer, 384, 213, 702);
     texture.needsUpdate = true;
   }
 

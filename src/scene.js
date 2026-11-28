@@ -36,7 +36,7 @@ export function startScene() {
   const modeLink = document.getElementById('mode');
   const courseGuide = document.getElementById('course-guide');
   if (room) {
-    courseGuide.textContent = 'Schuif met de linkerduimstick, draai met de rechterduimstick links/rechts en kies met A/B. Plaats met de trigger van je speelhand.';
+    courseGuide.textContent = 'Zet je banen klaar met de trekker. Druk de rechterduimstick in om ze op volgorde te spelen.';
     document.getElementById('room-mode').remove();
   } else if (practice) {
     courseGuide.textContent = 'Vlakke oefenbaan voor grip en korte putts.';
@@ -85,7 +85,7 @@ export function startScene() {
     },
     calibrationKey: room ? 'lichtvallei.putter.room.v1' : undefined,
     puttHint: room ? 'Houd de linkertrigger ingedrukt om te slaan.' : undefined,
-    reset: (hand, stance) => { resetRequest = { hand, stance }; },
+    reset: placement?.next ?? ((hand, stance) => { resetRequest = { hand, stance }; }),
     mute: toggleAudio,
     message: score.message,
   });
@@ -159,7 +159,7 @@ export function startScene() {
       frame?.session, rig, teleport.getViewerPosition(), teleport.right, delta, practice,
     );
     updatePutter(delta, resetting || relocated || walking);
-    score.update();
+    score.update(placement?.getRound());
     world?.update(time);
     renderer.render(scene, camera);
   });
