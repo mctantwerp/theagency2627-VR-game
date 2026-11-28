@@ -119,7 +119,6 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
   let yaw = 0;
   let hasPreview = false;
   let selected = defaultRoomCourseIndex;
-  let stickHeld = false;
   let aHeld = false;
   let bHeld = false;
   let placed = false;
@@ -135,22 +134,19 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
     onSelect(roomCourses[selected], selected);
   }
 
-  function cycle(right, axis) {
+  function cycle(right) {
     const a = right?.buttons[4]?.pressed ?? false;
     const b = right?.buttons[5]?.pressed ?? false;
-    const stickStep = !stickHeld && Math.abs(axis) >= 0.55 ? Math.sign(axis) : 0;
-    const buttonStep = Number(b && !bHeld) - Number(a && !aHeld);
-    stickHeld = Math.abs(axis) >= (stickHeld ? 0.3 : 0.55);
+    const step = Number(b && !bHeld) - Number(a && !aHeld);
     aHeld = a;
     bHeld = b;
-    const step = buttonStep || stickStep;
     if (step) select(selected + step);
   }
 
   function reset(immersive = false) {
     placed = requested = viewerTracked = hasPreview = false;
     triggerReleased = striking = false;
-    stickHeld = aHeld = bHeld = false;
+    aHeld = bHeld = false;
     guide.visible = prompt.visible = false;
     course.visible = !immersive;
     rig.position.set(0, 0, 0);
@@ -201,15 +197,12 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
       hasPreview = true;
     }
     const right = controllerGamepad(frame.session.inputSources, 'right');
-    const rightX = right?.axes[2] ?? 0;
-    const rightY = right?.axes[3] ?? 0;
-    const turning = Math.abs(rightY) > Math.abs(rightX);
-    cycle(right, turning ? 0 : rightX);
+    cycle(right);
     const dt = Math.min(delta, 0.05);
     direction.set(stickAmount(left?.axes[2] ?? 0), 0, stickAmount(left?.axes[3] ?? 0));
     direction.clampLength(0, 1).applyAxisAngle(up, viewerYaw);
     origin.addScaledVector(direction, dt);
-    if (turning) yaw -= stickAmount(rightY) * dt * 1.6;
+    yaw -= stickAmount(right?.axes[2] ?? 0) * dt * 1.6;
     guide.visible = true;
     guide.position.copy(origin);
     guide.rotation.y = yaw;
@@ -230,8 +223,8 @@ export function setupRoomPlacement(scene, course, rig, onSelect = () => {}) {
       context.fillText(title, canvas.width / 2, 52, canvas.width - 42);
       context.font = '30px system-ui';
       context.fillText('Linkerduimstick • Verplaatsen', canvas.width / 2, 113, canvas.width - 42);
-      context.fillText('Rechterduimstick ↑↓ • Draaien', canvas.width / 2, 163, canvas.width - 42);
-      context.fillText('A/B of rechterduimstick ←→ • Andere baan', canvas.width / 2, 213, canvas.width - 42);
+      context.fillText('Rechterduimstick ←→ • Draaien', canvas.width / 2, 163, canvas.width - 42);
+      context.fillText('A/B • Andere baan', canvas.width / 2, 213, canvas.width - 42);
       context.fillText('Trigger speelhand • Plaatsen    |    Houd X vast • Startscherm', canvas.width / 2, 267, canvas.width - 42);
       texture.needsUpdate = true;
     }

@@ -36,7 +36,7 @@ export function startScene() {
   const modeLink = document.getElementById('mode');
   const courseGuide = document.getElementById('course-guide');
   if (room) {
-    courseGuide.textContent = 'Schuif de baan met de linkerduimstick, draai met rechts omhoog/omlaag en kies met A/B. Plaats met de trigger van je speelhand.';
+    courseGuide.textContent = 'Schuif met de linkerduimstick, draai met de rechterduimstick links/rechts en kies met A/B. Plaats met de trigger van je speelhand.';
     document.getElementById('room-mode').remove();
   } else if (practice) {
     courseGuide.textContent = 'Vlakke oefenbaan voor grip en korte putts.';
